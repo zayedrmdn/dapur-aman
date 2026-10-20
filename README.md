@@ -1,0 +1,22 @@
+# Dapur Aman by Nexara
+
+[Bahasa Indonesia](README.id.md)
+
+A phone-first food-safety assistant for MBG (Makan Bergizi Gratis) kitchens.
+
+Built by team **Nexara Vision** for **ITB Hackathon Series 2026**, Genomik track (21–23 October 2026).
+
+> Work in progress. Code arrives during the hackathon.
+
+## Team
+
+| Name   | Role                                                  |
+| ------ | ----------------------------------------------------- |
+| Rabab  | Team lead: demo script, pitch deck, test material, judge Q&A |
+| Zayed  | Orchestrator agent, API, deployment                   |
+| Rohmat | Vision and compliance agents, data schema, pathogen table |
+| Finiko | Staff app and supervisor dashboard                    |
+
+## License
+
+[MIT](LICENSE)
