@@ -10,12 +10,12 @@ Dibuat oleh tim **Nexara Vision** untuk **ITB Hackathon Series 2026**, trek Geno
 
 ## Tim
 
-| Nama   | Peran                                                  |
-| ------ | ------------------------------------------------------ |
-| Rabab  | Ketua tim: skrip demo, pitch deck, materi uji, tanya jawab juri |
-| Zayed  | Agen orkestrator, API, deployment                      |
-| Rohmat | Agen visi dan kepatuhan, skema data, tabel patogen     |
-| Finiko | Aplikasi staf dan dasbor supervisor                    |
+| Nama   | Peran               | Cakupan peran                                          |
+| ------ | ------------------- | ------------------------------------------------------ |
+| Rabab  | Hustler (ketua tim) | Sisi bisnis: strategi produk, pitch, koordinasi tim    |
+| Zayed  | Hacker              | Membangun produk: kode, AI, dan back end               |
+| Finiko | Hipster             | Merancang pengalaman pengguna: antarmuka dan front end |
+| Rohmat | Hacker              | Membangun produk: kode, AI, dan back end               |
 
 ## Lisensi
 

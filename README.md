@@ -10,12 +10,12 @@ Built by team **Nexara Vision** for **ITB Hackathon Series 2026**, Genomik track
 
 ## Team
 
-| Name   | Role                                                  |
-| ------ | ----------------------------------------------------- |
-| Rabab  | Team lead: demo script, pitch deck, test material, judge Q&A |
-| Zayed  | Orchestrator agent, API, deployment                   |
-| Rohmat | Vision and compliance agents, data schema, pathogen table |
-| Finiko | Staff app and supervisor dashboard                    |
+| Name   | Role                | What the role covers                                   |
+| ------ | ------------------- | ------------------------------------------------------ |
+| Rabab  | Hustler (team lead) | Business side: product strategy, pitch, team coordination |
+| Zayed  | Hacker              | Builds the product: code, AI and back end              |
+| Finiko | Hipster             | Designs the user experience: interface and front end   |
+| Rohmat | Hacker              | Builds the product: code, AI and back end              |
 
 ## License
 
