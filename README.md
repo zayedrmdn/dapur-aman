@@ -4,9 +4,9 @@
 
 A phone-first food-safety assistant for MBG (Makan Bergizi Gratis) kitchens.
 
-Built by team **Nexara Vision** for **ITB Hackathon Series 2026**, Genomik track (21–23 October 2026).
+Built by team **Nexara Vision** for the **Agentic AI Hackathon 2026**, part of ITB Hackathon Series 2026 (21–23 October 2026).
 
-> Work in progress. Code arrives during the hackathon.
+> Work in progress. Code is written during the 24-hour hacking window (21–22 October 2026).
 
 ## Team
 
@@ -16,6 +16,10 @@ Built by team **Nexara Vision** for **ITB Hackathon Series 2026**, Genomik track
 | Zayed  | Hacker              | Builds the product: code, AI and back end              |
 | Finiko | Hipster             | Designs the user experience: interface and front end   |
 | Rohmat | Hacker              | Builds the product: code, AI and back end              |
+
+## Use of AI tools
+
+The event rules allow AI coding assistants and generative models. The tools and models we use, and the parts they helped with, are listed here by the code freeze.
 
 ## License
 
