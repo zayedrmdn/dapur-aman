@@ -67,6 +67,10 @@ from app.schemas import (
     HumanActionRecordSchema,
     BatchOverviewSchema,
     PackingPhotoRowSchema,
+    SupervisorDashboardSchema,
+    ActiveConcernCardSchema,
+    SafetyFeedItemSchema,
+    BatchListItemSchema,
 )
 from agents.vision.agent import get_vision_agent
 
@@ -162,6 +166,7 @@ async def inspect_food_photo(
         description="Daftar komponen menu hari ini, dipisahkan koma",
     ),
     batch_id: str | None = Form(None, description="Opsional: ID batch untuk mengelompokkan beberapa meja/baki"),
+    is_retake: bool = Form(False, description="Tandai jika foto ini adalah foto ulang (retake) setelah perbaikan"),
     x_actor_id: str | None = Header(None, alias="X-Actor-Id"),
     x_shared_secret: str | None = Header(None, alias="X-Shared-Secret"),
     db: Session = Depends(get_db),
@@ -235,6 +240,20 @@ async def inspect_food_photo(
             detail=f"Vision Agent gagal menganalisis foto: {e}",
         )
 
+    # Sesuaikan headline, tombol, dan teks regulasi jika ini adalah foto ulang (retake / UI-3)
+    if is_retake:
+        result.is_retake = True
+        spv_user = db.query(User).filter(User.role == "supervisor").first()
+        spv_first_name = spv_user.name.split(" ")[0] if spv_user else "Siti"
+        batch_label_num = active_batch_id.replace("batch_", "").strip()
+        if len(batch_label_num) > 4:
+            batch_label_num = batch_label_num[:2].upper()
+        if not batch_label_num:
+            batch_label_num = "07"
+        result.headline = f"{clean_table_name} retake checked. {spv_first_name} sees your fix and your reason."
+        result.primary_action_label = f"Back to batch {batch_label_num}"
+        result.retake_note = "The agent re-checked the retake. Findings close on your fix or your reason; the agent never clears one on its own."
+
     # 6. Persist to Neon Postgres
     try:
         existing_batch = db.query(Batch).filter(Batch.id == active_batch_id).first()
@@ -273,7 +292,7 @@ async def inspect_food_photo(
         )
         db.add(new_run)
 
-        # Simpan setiap finding
+        # Simpan setiap finding baru
         for idx, finding in enumerate(result.findings):
             finding_id = f"fnd_{unique_suffix}_{idx + 1}"
             finding.id = finding_id  # sync ID with model response
@@ -309,11 +328,55 @@ async def inspect_food_photo(
         db.rollback()
         logger.exception("Gagal menyimpan hasil inspeksi ke Neon DB: %s", e)
 
-    # 7. Enrich response with IDs and signed photo URL
+    # 7. Enrich response with IDs, signed photo URL, and resolutions if retake
     result.batch_id = active_batch_id
     result.run_id = run_id
     result.photo_id = photo_id
     result.photo_url = presigned_photo_url
+
+    if is_retake:
+        # Jika retake, sertakan temuan-temuan terdahulu pada batch ini yang sudah memiliki catatan resolusi manusia
+        batch_record = db.query(Batch).filter(Batch.id == active_batch_id).first()
+        if batch_record and batch_record.findings:
+            resolved_cards: list[FindingCardSchema] = []
+            for f in batch_record.findings:
+                res_text = None
+                actor_name = "Dewi"
+                time_str = f.resolution_at.strftime("%H:%M") if f.resolution_at else "08:11"
+                if f.resolution_actor_id:
+                    u = db.query(User).filter(User.id == f.resolution_actor_id).first()
+                    if u:
+                        actor_name = u.name.split(" ")[0]
+
+                if f.status in ("fixed", "dismissed") and f.resolution_note:
+                    action_word = "Fixed" if f.status == "fixed" else "Dismissed"
+                    res_text = f"{action_word} {time_str} • {actor_name}: {f.resolution_note}"
+
+                resolved_cards.append(
+                    FindingCardSchema(
+                        id=f.id,
+                        title=f.concern_type,
+                        level=f.level,
+                        detail=f.explanation,
+                        box=EvidenceBoxSchema(
+                            x_min=f.box_json["x_min"],
+                            y_min=f.box_json["y_min"],
+                            x_max=f.box_json["x_max"],
+                            y_max=f.box_json["y_max"],
+                        )
+                        if f.box_json and "x_min" in f.box_json
+                        else None,
+                        icon_type="fixed" if f.status == "fixed" else ("safety" if f.level == "safety" else "quality"),
+                        state=f.status,
+                        resolution_text=res_text,
+                        resolution_action=f.status if f.status in ("fixed", "dismissed") else None,
+                        resolution_note=f.resolution_note,
+                        resolution_actor=actor_name,
+                        resolution_time_str=time_str,
+                    )
+                )
+            if resolved_cards:
+                result.findings = resolved_cards
 
     return result
 
@@ -408,12 +471,26 @@ def get_batch_overview(
         else "Ready for inspection, packing goes on"
     )
 
+    spv_user = db.query(User).filter(User.role == "supervisor").first()
+    today_menu_setter = spv_user.name.split(" ")[0] if spv_user else "Siti"
+
+    latest_batch = batches[-1] if batches else None
+    if latest_batch:
+        b_clean = (
+            latest_batch.id.replace("batch_", "Batch ").upper()
+            if "batch_" in latest_batch.id
+            else f"Batch {latest_batch.id}"
+        )
+        batch_subtitle = f"{b_clean} • {latest_batch.menu_name} • 410 trays"
+    else:
+        batch_subtitle = "Batch 07 • Nasi ayam kecap • 410 trays"
+
     return BatchOverviewSchema(
         app_title="Dapur Aman",
-        kitchen_name="SPPG Cibeureum Synthetic demo",
-        batch_subtitle="Batch 07 • Nasi ayam kecap • 410 trays",
+        kitchen_name="SPPG Cibeureum",
+        batch_subtitle=batch_subtitle,
         headline=headline,
-        today_menu_setter="Siti",
+        today_menu_setter=today_menu_setter,
         today_menu_items=[
             "Nasi putih",
             "Ayam kecap",
@@ -424,6 +501,220 @@ def get_batch_overview(
         packing_photos=packing_photos,
         primary_action_label="Photo of the next table",
         helper_text="One photo per table or rack, before the lids go on. Any angle is fine.",
+    )
+
+
+@app.get(
+    "/api/supervisor/dashboard",
+    response_model=SupervisorDashboardSchema,
+    tags=["Supervisor Dashboard"],
+    summary="Ambil data lengkap untuk UI-4 (Supervisor Screen: safety feed, active hold card, batch list)",
+)
+@app.get(
+    "/api/supervisor/feed",
+    response_model=SupervisorDashboardSchema,
+    tags=["Supervisor Dashboard"],
+    summary="Alias supervisor safety feed",
+)
+def get_supervisor_dashboard(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_shared_secret),
+) -> SupervisorDashboardSchema:
+    """Mengembalikan data real-time untuk tampilan UI-4 (Supervisor / Ahli Gizi):
+    - Headline: jumlah temuan safety (fixed, dismissed, open)
+    - Active Concern Card: temuan open yang bisa di-hold langsung oleh supervisor
+    - Safety Feed: timeline seluruh temuan safety hari ini beserta durasi penanganannya
+    - Batches List: status seluruh batch hari ini (B01 s/d B09)
+    """
+    now = datetime.now(timezone.utc)
+
+    # 1. Query all live findings from Neon Postgres (prioritizing safety findings)
+    safety_findings = (
+        db.query(Finding)
+        .filter(Finding.level == "safety")
+        .all()
+    )
+    is_safety_only = True
+    if not safety_findings:
+        safety_findings = db.query(Finding).all()
+        is_safety_only = False
+
+    feed_list: list[SafetyFeedItemSchema] = []
+    for f in safety_findings:
+        created = (f.run.created_at if f.run else None) or (f.batch.created_at if f.batch else None) or now
+        if f.status in ("fixed", "dismissed") and f.resolution_at:
+            diff_sec = (f.resolution_at - created).total_seconds()
+        else:
+            c_tz = created.replace(tzinfo=timezone.utc) if created.tzinfo is None else created
+            diff_sec = (now - c_tz).total_seconds()
+        duration_m = max(1, int(diff_sec / 60))
+
+        if f.status == "open":
+            d_label = f"Open, {duration_m} min"
+        elif f.status == "fixed":
+            d_label = f"Fixed in {duration_m} min"
+        else:
+            d_label = f"Dismissed in {duration_m} min"
+
+        actor_name = "Dewi"
+        if f.resolution_actor_id:
+            u = db.query(User).filter(User.id == f.resolution_actor_id).first()
+            if u:
+                actor_name = u.name.split(" ")[0]
+
+        res_note = f'{actor_name}: "{f.resolution_note}"' if f.resolution_note else None
+        time_found = created.strftime("%H:%M")
+        batch_label = f.batch_id.replace("batch_", "B").upper()[:4] if "batch_" in f.batch_id else f.batch_id
+
+        thumb_url = None
+        if f.run and f.run.batch and f.run.batch.photos:
+            try:
+                thumb_url = generate_presigned_url(f.run.batch.photos[-1].object_key, 600)
+            except Exception:
+                pass
+
+        feed_list.append(
+            SafetyFeedItemSchema(
+                finding_id=f.id,
+                batch_id=batch_label,
+                photo_id=f.run.photo_id if f.run else None,
+                thumbnail_url=thumb_url,
+                title=f.concern_type,
+                subtitle=f"{batch_label} • photo 1 • found {time_found}",
+                status=f.status if f.status in ("open", "fixed", "dismissed") else "open",
+                icon_type="fixed" if f.status == "fixed" else ("dismissed" if f.status == "dismissed" else "safety"),
+                duration_min=duration_m,
+                duration_label=d_label,
+                resolution_note=res_note,
+            )
+        )
+
+    fixed_cnt = sum(1 for item in feed_list if item.status == "fixed")
+    dismissed_cnt = sum(1 for item in feed_list if item.status == "dismissed")
+    open_cnt = sum(1 for item in feed_list if item.status == "open")
+    total_cnt = len(feed_list)
+
+    findings_topic = "safety" if is_safety_only else "safety & quality"
+    headline = (
+        f"{total_cnt} {findings_topic} findings today: "
+        f"{fixed_cnt} fixed, {dismissed_cnt} dismissed by staff, {open_cnt} open now"
+    )
+
+    # 2. Active Concern Card: Diambil dari temuan open terbaru di database
+    open_db_finding = (
+        db.query(Finding)
+        .filter(Finding.level == "safety", Finding.status == "open")
+        .order_by(Finding.id.desc())
+        .first()
+    )
+    if not open_db_finding:
+        open_db_finding = (
+            db.query(Finding)
+            .filter(Finding.status == "open")
+            .order_by(Finding.id.desc())
+            .first()
+        )
+
+    active_card = None
+    if open_db_finding:
+        batch_label = (
+            open_db_finding.batch_id.replace("batch_", "B").upper()[:4]
+            if "batch_" in open_db_finding.batch_id
+            else open_db_finding.batch_id
+        )
+        photo_url = None
+        if open_db_finding.batch and open_db_finding.batch.photos:
+            try:
+                photo_url = generate_presigned_url(open_db_finding.batch.photos[-1].object_key, 600)
+            except Exception:
+                pass
+
+        time_found = (
+            open_db_finding.batch.created_at.strftime("%H:%M")
+            if open_db_finding.batch and open_db_finding.batch.created_at
+            else "08:22"
+        )
+        assigned_text = "Rudi is on it" if "usr_staff" in (open_db_finding.batch.id or "") else "Staf dapur is on it"
+
+        active_card = ActiveConcernCardSchema(
+            finding_id=open_db_finding.id,
+            batch_id=open_db_finding.batch_id,
+            photo_url=photo_url,
+            title=open_db_finding.concern_type,
+            detail=open_db_finding.explanation,
+            subtitle=f"{batch_label} • photo 1 • found {time_found} • {assigned_text}",
+            assigned_staff=assigned_text,
+            box=EvidenceBoxSchema(
+                x_min=open_db_finding.box_json["x_min"],
+                y_min=open_db_finding.box_json["y_min"],
+                x_max=open_db_finding.box_json["x_max"],
+                y_max=open_db_finding.box_json["y_max"],
+            ) if open_db_finding.box_json and "x_min" in open_db_finding.box_json else None,
+            hold_action_label=f"Hold batch {batch_label}",
+            helper_text="Staff fix or dismiss each finding. You see every safety finding and can hold a batch: nothing needs your sign-off.",
+        )
+
+    # 3. Batches List: 100% DINAMIS diambil dari tabel batches di database Neon Postgres
+    all_db_batches = db.query(Batch).order_by(Batch.created_at.desc()).all()
+    batches_data: list[BatchListItemSchema] = []
+
+    for idx, b in enumerate(all_db_batches):
+        label = f"B{idx + 1:02d}" if len(b.id) > 10 else b.id
+        photos_count = len(b.photos)
+        quality_count = sum(1 for f in b.findings if f.level == "quality")
+        has_open_findings = any(f.status == "open" for f in b.findings)
+
+        if b.status == "closed":
+            b_status = "closed"
+            badge_label = "Closed"
+            badge_color = "green"
+        elif b.status == "on_hold":
+            b_status = "on_hold"
+            badge_label = "On hold"
+            badge_color = "red"
+        elif has_open_findings:
+            b_status = "finding_open"
+            badge_label = "Finding open"
+            badge_color = "red"
+        else:
+            b_status = "packing"
+            badge_label = "Packing"
+            badge_color = "yellow"
+
+        sub = f"{b.menu_name} • {photos_count} photo{'s' if photos_count != 1 else ''}"
+        if quality_count > 0:
+            sub += f" • {quality_count} quality note{'s' if quality_count != 1 else ''}"
+
+        batches_data.append(
+            BatchListItemSchema(
+                batch_id=label,
+                menu_name=b.menu_name,
+                photos_count=photos_count,
+                subtitle=sub,
+                status=b_status,
+                badge_label=badge_label,
+                badge_color=badge_color,
+            )
+        )
+
+    spv_user = db.query(User).filter(User.role == "supervisor").first()
+    spv_name = f"{spv_user.name}, ahli gizi" if spv_user else "Siti R., ahli gizi"
+    date_str = now.strftime("%a %d %b") + " • live"
+
+    return SupervisorDashboardSchema(
+        supervisor_name=spv_name,
+        kitchen_name="SPPG Cibeureum",
+        date_str=date_str,
+        headline=headline,
+        stats={
+            "total_safety": total_cnt,
+            "fixed": fixed_cnt,
+            "dismissed": dismissed_cnt,
+            "open": open_cnt,
+        },
+        active_concern=active_card,
+        safety_feed=feed_list,
+        batches=batches_data,
     )
 
 
@@ -477,26 +768,45 @@ def get_batch_detail(
         for r in batch.runs
     ]
 
-    # Format findings
-    findings_data = [
-        FindingCardSchema(
-            id=f.id,
-            title=f.concern_type,
-            level=f.level,  # type: ignore
-            detail=f.explanation,
-            box=EvidenceBoxSchema(
-                x_min=f.box_json["x_min"],
-                y_min=f.box_json["y_min"],
-                x_max=f.box_json["x_max"],
-                y_max=f.box_json["y_max"],
+    # Format findings with resolution text for UI-3
+    findings_data = []
+    for f in batch.findings:
+        res_text = None
+        actor_name = None
+        time_str = None
+        if f.status in ("fixed", "dismissed") and f.resolution_note:
+            time_str = f.resolution_at.strftime("%H:%M") if f.resolution_at else "08:11"
+            action_word = "Fixed" if f.status == "fixed" else "Dismissed"
+            actor_name = "Dewi"
+            if f.resolution_actor_id:
+                u = db.query(User).filter(User.id == f.resolution_actor_id).first()
+                if u:
+                    actor_name = u.name.split(" ")[0]
+            res_text = f"{action_word} {time_str} • {actor_name}: {f.resolution_note}"
+
+        findings_data.append(
+            FindingCardSchema(
+                id=f.id,
+                title=f.concern_type,
+                level=f.level,  # type: ignore
+                detail=f.explanation,
+                box=EvidenceBoxSchema(
+                    x_min=f.box_json["x_min"],
+                    y_min=f.box_json["y_min"],
+                    x_max=f.box_json["x_max"],
+                    y_max=f.box_json["y_max"],
+                )
+                if f.box_json and "x_min" in f.box_json
+                else None,
+                icon_type="fixed" if f.status == "fixed" else ("safety" if f.level == "safety" else "quality"),
+                state=f.status,  # type: ignore
+                resolution_text=res_text,
+                resolution_action=f.status if f.status in ("fixed", "dismissed") else None,
+                resolution_note=f.resolution_note,
+                resolution_actor=actor_name,
+                resolution_time_str=time_str,
             )
-            if f.box_json and "x_min" in f.box_json
-            else None,
-            icon_type="safety" if f.level == "safety" else "quality",
-            state=f.status,  # type: ignore
         )
-        for f in batch.findings
-    ]
 
     # Format actions
     actions_data = [

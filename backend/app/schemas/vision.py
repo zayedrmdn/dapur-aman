@@ -17,8 +17,13 @@ class FindingCardSchema(BaseModel):
     level: Literal["safety", "quality"]  # "safety" (red badge), "quality" (yellow badge)
     detail: str  # e.g. "Pink near the bone • Salmonella risk"
     box: EvidenceBoxSchema | None = None
-    icon_type: str = "safety"  # "safety", "quality", "warning"
+    icon_type: str = "safety"  # "safety", "quality", "warning", "fixed"
     state: Literal["open", "fixed", "dismissed"] = "open"
+    resolution_text: str | None = None  # e.g. "Fixed 08:11 • Dewi: Swapped the tray; that piece went back in the wok for 6 minutes."
+    resolution_action: str | None = None  # "fixed" or "dismissed"
+    resolution_note: str | None = None
+    resolution_actor: str | None = None  # e.g. "Dewi"
+    resolution_time_str: str | None = None  # e.g. "08:11"
 
 
 class FoodComponentSchema(BaseModel):
@@ -31,15 +36,17 @@ class FoodComponentSchema(BaseModel):
 class InspectionResponseSchema(BaseModel):
     table_name: str  # e.g. "Table 2"
     timestamp_str: str  # e.g. "08:11"
-    headline: str  # e.g. "2 safety spots to fix before packing on"
+    headline: str  # e.g. "Table 2 retake checked. Siti sees your fix and your reason."
     summary_label: str  # e.g. "2 safety spots" or "No spots" (for UI-1 list)
     status: Literal["clean", "review_required", "retake_required"]
-    primary_action_label: str  # e.g. "Fix these, then retake" or "Photo of the next table"
+    primary_action_label: str  # e.g. "Fix these, then retake" or "Back to batch 07"
     batch_id: str | None = None
     run_id: str | None = None
     photo_id: str | None = None
     photo_url: str | None = None
+    is_retake: bool = False
+    retake_note: str | None = None  # e.g. "The agent re-checked the retake. Findings close on your fix or your reason; the agent never clears one on its own."
     detected_components: list[FoodComponentSchema] = []  # for "Today's menu" chips
-    findings: list[FindingCardSchema] = []  # for detail cards in UI-2
+    findings: list[FindingCardSchema] = []  # for detail cards in UI-2 & UI-3
     image_quality_issues: list[str] = []
     missing_evidence: list[str] = []
