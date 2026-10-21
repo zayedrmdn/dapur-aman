@@ -62,6 +62,10 @@ from app.schemas import (
     HumanActionRecordSchema,
     BatchOverviewSchema,
     PackingPhotoRowSchema,
+    SupervisorDashboardSchema,
+    ActiveConcernCardSchema,
+    SafetyFeedItemSchema,
+    BatchListItemSchema,
 )
 from agents.compliance.rules import RULE_TABLE_VERSION
 from agents.contract import Finding as ContractFinding
@@ -162,6 +166,7 @@ async def inspect_food_photo(
         description="Daftar komponen menu hari ini, dipisahkan koma",
     ),
     batch_id: str | None = Form(None, description="Opsional: ID batch untuk mengelompokkan beberapa meja/baki"),
+    is_retake: bool = Form(False),
     _: None = Depends(verify_shared_secret),
     db: Session = Depends(get_db),
 ) -> InspectionResponseSchema:
@@ -200,6 +205,8 @@ async def inspect_food_photo(
     photo_id = f"pho_{unique_suffix}"
     run_id = f"run_{unique_suffix}"
     storage_key = f"photos/{active_batch_id}/{photo_id}.jpg"
+    if is_retake and (not batch_id or not db.get(Batch, active_batch_id)):
+        raise HTTPException(status_code=400, detail="A retake requires an existing batch_id.")
 
     try:
         upload_photo_bytes(storage_key, jpeg_bytes, "image/jpeg")
@@ -228,6 +235,16 @@ async def inspect_food_photo(
             datetime.now(timezone.utc).strftime("%H:%M"),
             finding_ids,
         )
+        response.is_retake = is_retake
+        if is_retake:
+            response.retake_note = (
+                "Retake processed. Earlier findings keep their recorded human resolutions; "
+                "the agent never clears them on its own."
+            )
+        for card in response.findings:
+            card.run_id = run_id
+            card.photo_id = photo_id
+            card.photo_url = presigned_photo_url
 
     try:
         existing_batch = db.query(Batch).filter(Batch.id == active_batch_id).first()
@@ -441,12 +458,14 @@ def get_batch_overview(
         else "Ready for inspection, packing goes on"
     )
 
+    supervisor = db.query(User).filter(User.role == "supervisor").first()
+    latest_batch = batches[-1] if batches else None
     return BatchOverviewSchema(
         app_title="Dapur Aman",
-        kitchen_name="SPPG Cibeureum Synthetic demo",
-        batch_subtitle="Batch 07 • Nasi ayam kecap • 410 trays",
+        kitchen_name="SPPG Cibeureum",
+        batch_subtitle=f"{latest_batch.id}: {latest_batch.menu_name}" if latest_batch else "No batches yet",
         headline=headline,
-        today_menu_setter="Siti",
+        today_menu_setter=supervisor.name if supervisor else "Not recorded",
         today_menu_items=[
             "Nasi putih",
             "Ayam kecap",
@@ -457,6 +476,155 @@ def get_batch_overview(
         packing_photos=packing_photos,
         primary_action_label="Photo of the next table",
         helper_text="One photo per table or rack, before the lids go on. Any angle is fine.",
+    )
+
+
+def finding_photo(finding: Finding) -> Photo | None:
+    if not finding.run or not finding.batch:
+        return None
+    return next((photo for photo in finding.batch.photos if photo.id == finding.run.photo_id), None)
+
+
+def signed_photo_url(photo: Photo | None) -> str | None:
+    if photo is None:
+        return None
+    try:
+        return generate_presigned_url(photo.object_key, expires_in=600)
+    except Exception:
+        return None
+
+
+def saved_finding_card(finding: Finding, db: Session) -> FindingCardSchema:
+    resolved = finding.status in ("fixed", "dismissed")
+    actor = db.get(User, finding.resolution_actor_id) if finding.resolution_actor_id else None
+    time_str = finding.resolution_at.strftime("%H:%M") if finding.resolution_at else None
+    resolution_text = None
+    if resolved and finding.resolution_note:
+        resolution_text = "Fixed" if finding.status == "fixed" else "Dismissed"
+        if time_str:
+            resolution_text += f" {time_str}"
+        if actor:
+            resolution_text += f" - {actor.name}"
+        resolution_text += f": {finding.resolution_note}"
+    return FindingCardSchema(
+        id=finding.id,
+        title=finding.concern_type,
+        level=finding.level,
+        detail=finding.explanation,
+        box=EvidenceBoxSchema(**finding.box_json) if finding.box_json else None,
+        icon_type="fixed" if finding.status == "fixed" else finding.level,
+        state=finding.status,
+        rule_reference=finding.rule_reference,
+        evidence_gap=finding.evidence_gap,
+        suggested_action=finding.suggested_action,
+        run_id=finding.run_id,
+        photo_id=finding.run.photo_id if finding.run else None,
+        photo_url=signed_photo_url(finding_photo(finding)),
+        resolution_text=resolution_text,
+        resolution_action=finding.status if resolved else None,
+        resolution_note=finding.resolution_note,
+        resolution_actor=actor.name if actor else None,
+        resolution_time_str=time_str,
+    )
+
+
+def utc_datetime(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
+@app.get(
+    "/api/supervisor/dashboard",
+    response_model=SupervisorDashboardSchema,
+    tags=["Supervisor Dashboard"],
+)
+@app.get(
+    "/api/supervisor/feed",
+    response_model=SupervisorDashboardSchema,
+    tags=["Supervisor Dashboard"],
+)
+def get_supervisor_dashboard(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_shared_secret),
+    actor: User = Depends(get_current_actor),
+) -> SupervisorDashboardSchema:
+    if actor.role != "supervisor":
+        raise HTTPException(status_code=403, detail="Supervisor access required.")
+    now = datetime.now(timezone.utc)
+    safety_findings = db.query(Finding).filter(Finding.level == "safety").all()
+    safety_findings.sort(
+        key=lambda finding: utc_datetime(finding.run.created_at), reverse=True
+    )
+    feed = []
+    active_card = None
+    for finding in safety_findings:
+        created = utc_datetime(finding.run.created_at)
+        end = utc_datetime(finding.resolution_at) if finding.resolution_at else now
+        minutes = max(0, int((end - created).total_seconds() / 60))
+        resolved = finding.status in ("fixed", "dismissed")
+        verb = "Fixed" if finding.status == "fixed" else "Dismissed"
+        duration = f"{verb} in {minutes} min" if resolved and finding.resolution_at else (
+            "Resolution time unavailable" if resolved else f"Open, {minutes} min"
+        )
+        card = saved_finding_card(finding, db)
+        subtitle = f"{finding.batch_id} - found {created.strftime('%d %b %H:%M')} UTC"
+        feed.append(SafetyFeedItemSchema(
+            finding_id=finding.id,
+            batch_id=finding.batch_id,
+            run_id=finding.run_id,
+            photo_id=card.photo_id,
+            thumbnail_url=card.photo_url,
+            title=finding.concern_type,
+            subtitle=subtitle,
+            status=finding.status,
+            icon_type=finding.status if resolved else "safety",
+            duration_min=minutes,
+            duration_label=duration,
+            resolution_note=card.resolution_text,
+        ))
+        if active_card is None and finding.status == "open":
+            active_card = ActiveConcernCardSchema(
+                finding_id=finding.id,
+                batch_id=finding.batch_id,
+                run_id=finding.run_id,
+                photo_id=card.photo_id,
+                photo_url=card.photo_url,
+                title=finding.concern_type,
+                detail=finding.explanation,
+                level=finding.level,
+                subtitle=subtitle,
+                assigned_staff="",
+                box=card.box,
+                hold_action_label=f"Hold batch {finding.batch_id}",
+            )
+    batches = []
+    for batch in db.query(Batch).order_by(Batch.created_at.desc()).all():
+        has_open = any(finding.status == "open" for finding in batch.findings)
+        latest = max(batch.runs, key=lambda run: run.created_at) if batch.runs else None
+        completed = latest is not None and latest.state == "completed" and latest.outcome in ("clean", "review_required", "retake_required")
+        if batch.status == "closed":
+            state, label, color = "closed", "Closed", "green"
+        elif batch.status == "on_hold":
+            state, label, color = "on_hold", "On hold", "red"
+        elif has_open:
+            state, label, color = "finding_open", "Finding open", "red"
+        else:
+            state, label, color = "packing", "Packing" if completed else "Inspection incomplete", "yellow"
+        quality_count = sum(finding.level == "quality" for finding in batch.findings)
+        subtitle = f"{batch.menu_name} - {len(batch.photos)} photos - {quality_count} quality notes"
+        batches.append(BatchListItemSchema(
+            batch_id=batch.id, menu_name=batch.menu_name, photos_count=len(batch.photos),
+            subtitle=subtitle, status=state, badge_label=label, badge_color=color,
+        ))
+    fixed = sum(item.status == "fixed" for item in feed)
+    dismissed = sum(item.status == "dismissed" for item in feed)
+    open_count = sum(item.status == "open" for item in feed)
+    return SupervisorDashboardSchema(
+        supervisor_name=actor.name,
+        kitchen_name="SPPG Cibeureum",
+        date_str=now.strftime("%a %d %b %H:%M UTC"),
+        headline=f"{len(feed)} recorded safety findings: {fixed} fixed, {dismissed} dismissed by staff, {open_count} open now",
+        stats={"total_safety": len(feed), "fixed": fixed, "dismissed": dismissed, "open": open_count},
+        active_concern=active_card, safety_feed=feed, batches=batches,
     )
 
 
@@ -510,26 +678,7 @@ def get_batch_detail(
         for r in batch.runs
     ]
 
-    # Format findings
-    findings_data = [
-        FindingCardSchema(
-            id=f.id,
-            title=f.concern_type,
-            level=f.level,  # type: ignore
-            detail=f.explanation,
-            box=EvidenceBoxSchema(
-                x_min=f.box_json["x_min"],
-                y_min=f.box_json["y_min"],
-                x_max=f.box_json["x_max"],
-                y_max=f.box_json["y_max"],
-            )
-            if f.box_json and "x_min" in f.box_json
-            else None,
-            icon_type="safety" if f.level == "safety" else "quality",
-            state=f.status,  # type: ignore
-        )
-        for f in batch.findings
-    ]
+    findings_data = [saved_finding_card(finding, db) for finding in batch.findings]
 
     # Format actions
     actions_data = [

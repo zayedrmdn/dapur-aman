@@ -21,6 +21,12 @@ from app.schemas.batch import (
     PackingPhotoRowSchema,
     BatchOverviewSchema,
 )
+from app.schemas.supervisor import (
+    ActiveConcernCardSchema,
+    SafetyFeedItemSchema,
+    BatchListItemSchema,
+    SupervisorDashboardSchema,
+)
 
 __all__ = [
     "EvidenceBoxSchema",
@@ -36,4 +42,8 @@ __all__ = [
     "HumanActionRecordSchema",
     "PackingPhotoRowSchema",
     "BatchOverviewSchema",
+    "ActiveConcernCardSchema",
+    "SafetyFeedItemSchema",
+    "BatchListItemSchema",
+    "SupervisorDashboardSchema",
 ]

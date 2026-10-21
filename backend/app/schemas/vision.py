@@ -22,6 +22,14 @@ class FindingCardSchema(BaseModel):
     rule_reference: str | None = None
     evidence_gap: str | None = None
     suggested_action: str | None = None
+    resolution_text: str | None = None  # e.g. "Fixed 08:11 • Dewi: Swapped the tray; that piece went back in the wok for 6 minutes."
+    resolution_action: str | None = None  # "fixed" or "dismissed"
+    resolution_note: str | None = None
+    resolution_actor: str | None = None  # e.g. "Dewi"
+    resolution_time_str: str | None = None  # e.g. "08:11"
+    run_id: str | None = None
+    photo_id: str | None = None
+    photo_url: str | None = None
 
 
 class FoodComponentSchema(BaseModel):
@@ -42,6 +50,8 @@ class InspectionResponseSchema(BaseModel):
     run_id: str | None = None
     photo_id: str | None = None
     photo_url: str | None = None
+    is_retake: bool = False
+    retake_note: str | None = None
     detected_components: list[FoodComponentSchema] = []  # for "Today's menu" chips
     findings: list[FindingCardSchema] = []  # for detail cards in UI-2
     image_quality_issues: list[str] = []
