@@ -5,6 +5,7 @@ import Link from "next/link";
 import Button from "@mui/material/Button";
 import { api, ApiError, type Batch, type Overview } from "@/lib/contracts";
 import SupervisorShell from "./SupervisorShell";
+import SafetyFeedItem from "./SafetyFeedItem";
 
 export default function SupervisorApp({ review = false }: { review?: boolean }) {
     const router = useRouter();
@@ -34,6 +35,13 @@ export default function SupervisorApp({ review = false }: { review?: boolean }) 
                     <h2 className="flex items-baseline justify-between text-[15px] font-extrabold">Safety feed <small className="text-xs font-normal text-ink2">
                         bar = time to fix, {timeToFix} min</small>
                     </h2>
+                    <ul className="mt-1">
+                        <SafetyFeedItem
+                            safetyDescription="" batchID="" photoID="" feedTime="" feedStatus=""
+                            feedHandlingRemainingTime="" PeopleInCharge="" PICAction="" foodImageUrl=""
+                            percentage={25}
+                        />
+                    </ul>
                 </div>
             </section>
         </main>
