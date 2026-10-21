@@ -197,6 +197,7 @@ class InspectionRun:
             raise
 
     async def run_vision(self) -> dict:
+        self.compliance_result = None
         vision = self.vision_builder(self.model)
         reply = await run_agent(vision, self.vision_message(), {}, self.recorder)
         self.vision_result = parse_reply(reply, VisionObservation, "vision")

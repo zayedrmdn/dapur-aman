@@ -194,3 +194,24 @@ def test_fixture_result_is_labelled_simulated(monkeypatch):
     assert outcome.provider == "fixture"
     assert all(event.kind == "simulated" for event in outcome.events)
     assert all(finding.explanation.startswith("Simulated") for finding in outcome.findings)
+
+
+def test_second_vision_run_drops_the_old_compliance_result():
+    model = ScriptedLlm(
+        model="scripted",
+        replies=[
+            tool_calls(("inspect_photo", {})),
+            json_reply(FOREIGN_OBJECT_SEEN),
+            tool_calls(("check_compliance", {})),
+            *compliance_replies("rule-table-v1:foreign-01"),
+            tool_calls(("inspect_photo", {})),
+            json_reply(FOREIGN_OBJECT_SEEN),
+            json_reply({"outcome": "review_required", "next_action": "Check it."}),
+        ],
+    )
+
+    outcome = run(model)
+
+    assert outcome.state == RunState.FAILED
+    assert outcome.error.code == "compliance_not_run"
+
