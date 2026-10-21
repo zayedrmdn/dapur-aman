@@ -63,6 +63,7 @@ class SupervisorDashboardSchema(BaseModel):
     kitchen_name: str = "SPPG Cibeureum"
     date_str: str = "Thu 22 Oct • synthetic"
     headline: str = "5 safety findings today: 3 fixed, 1 dismissed by staff, 1 open now"
+    is_supervisor: bool = True
     stats: dict[str, int] = Field(
         default_factory=lambda: {
             "total_safety": 5,
@@ -71,6 +72,9 @@ class SupervisorDashboardSchema(BaseModel):
             "open": 1,
         }
     )
+    total_portions_cleared: int = 0
+    clean_pass_rate: int = 100
     active_concern: ActiveConcernCardSchema | None = None
     safety_feed: list[SafetyFeedItemSchema] = []
     batches: list[BatchListItemSchema] = []
+    schools: list[dict] = []

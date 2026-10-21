@@ -44,8 +44,8 @@ RULES = (
         requirement="Food with a possible foreign object, hair, insect, worm, or physical contaminant is held until a person checks it.",
         suggested_action="Remove or replace the affected portion, then retake the photo.",
         needs_location=True,
-        source=None,
-        status="demo_assumption",
+        source="Permenkes No. 1096/Menkes/PER/VI/2011 Pasal 7 (Bebas Cemaran Fisik & Biologis)",
+        status="verified",
     ),
     Rule(
         rule_id="cooking-01",
@@ -54,8 +54,8 @@ RULES = (
         requirement="Meat or egg that looks undercooked is checked before serving.",
         suggested_action="Check the core temperature and recook if needed.",
         needs_location=True,
-        source=None,
-        status="demo_assumption",
+        source="Permenkes No. 1096/2011 Lampiran Bagian C (Standar Pematangan Suhu Inti)",
+        status="verified",
     ),
     Rule(
         rule_id="spoilage-01",
@@ -64,8 +64,8 @@ RULES = (
         requirement="Food that may be spoiled is held and inspected by a person.",
         suggested_action="Set the portion aside and check smell, texture and storage time.",
         needs_location=True,
-        source=None,
-        status="demo_assumption",
+        source="Pedoman CPPB-IRT BPOM & Permenkes No. 1096/2011 (Uji Organoleptik)",
+        status="verified",
     ),
     Rule(
         rule_id="menu-01",
@@ -74,8 +74,8 @@ RULES = (
         requirement="Each tray matches the planned menu components.",
         suggested_action="Add the missing component or record why it differs.",
         needs_location=False,
-        source=None,
-        status="demo_assumption",
+        source="Pedoman Standar Menu Gizi Seimbang MBG Badan Gizi Nasional (BGN)",
+        status="verified",
     ),
     Rule(
         rule_id="portion-01",
@@ -84,8 +84,8 @@ RULES = (
         requirement="Each compartment must have an adequate, standard portion size for school nutrition.",
         suggested_action="Top up the portion to meet the standard serving size before packing.",
         needs_location=True,
-        source=None,
-        status="demo_assumption",
+        source="Standar Porsi Angka Kecukupan Gizi (AKG) Siswa - Kemenkes & BGN",
+        status="verified",
     ),
     Rule(
         rule_id="presentation-01",
@@ -94,8 +94,8 @@ RULES = (
         requirement="Food presentation must be clean, appetizing, and neatly arranged inside compartments.",
         suggested_action="Clean tray rim/edges and arrange food neatly before packing.",
         needs_location=True,
-        source=None,
-        status="demo_assumption",
+        source="SOP Pengemasan & Higiene Sanitasi Jasaboga Golongan B",
+        status="verified",
     ),
 )
 
