@@ -1,0 +1,70 @@
+{
+  "state": "completed",
+  "outcome": "review_required",
+  "findings": [
+    {
+      "level": "safety",
+      "concern_type": "undercooked",
+      "box": {
+        "x_min": 0.42,
+        "y_min": 0.31,
+        "x_max": 0.58,
+        "y_max": 0.47
+      },
+      "explanation": "Synthetic example: chicken surface looks pink near the bone.",
+      "rule_reference": "rule-table-v1:cooking-01",
+      "evidence_gap": null,
+      "suggested_action": "Check the core temperature and recook if needed."
+    }
+  ],
+  "uncertainty": [
+    "Synthetic example: a photo cannot confirm the internal temperature."
+  ],
+  "next_action": "Review the finding before serving.",
+  "error": null,
+  "events": [
+    {
+      "sequence": 1,
+      "timestamp": "2026-10-21T06:00:01Z",
+      "step": "inspect_photo",
+      "parent_step": null,
+      "agent": "vision",
+      "kind": "agent_call",
+      "status": "completed",
+      "summary": "Synthetic example: one possible visible concern.",
+      "references": [],
+      "uncertainty": null,
+      "error": null
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-10-21T06:00:03Z",
+      "step": "check_rules",
+      "parent_step": null,
+      "agent": "compliance",
+      "kind": "tool_call",
+      "status": "completed",
+      "summary": "Synthetic example: matched rule cooking-01.",
+      "references": [
+        "rule-table-v1:cooking-01"
+      ],
+      "uncertainty": null,
+      "error": null
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-10-21T06:00:04Z",
+      "step": "synthesize",
+      "parent_step": null,
+      "agent": "orchestrator",
+      "kind": "agent_call",
+      "status": "completed",
+      "summary": "Synthetic example: review required.",
+      "references": [],
+      "uncertainty": null,
+      "error": null
+    }
+  ],
+  "provider": "example",
+  "model": "example"
+}
