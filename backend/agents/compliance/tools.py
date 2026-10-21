@@ -48,7 +48,13 @@ def check_evidence(observation_index: int, tool_context: ToolContext) -> dict:
     if not 0 <= observation_index < len(observations):
         return {"error": f"no observation at index {observation_index}"}
 
-    observation = observations[observation_index]
+    gaps = evidence_gaps(
+        observations[observation_index], tool_context.state.get(IMAGE_QUALITY_KEY, [])
+    )
+    return {"observation_index": observation_index, "evidence_gaps": gaps}
+
+
+def evidence_gaps(observation: dict, image_quality_issues: list[str]) -> list[str]:
     needs_location = any(
         rule.needs_location for rule in rules_for_concern(observation["concern_type"])
     )
@@ -57,9 +63,9 @@ def check_evidence(observation_index: int, tool_context: ToolContext) -> dict:
         gaps.append("The concern has no location in the photo.")
     if observation.get("uncertainty"):
         gaps.append(f"Vision is uncertain: {observation['uncertainty']}")
-    for issue in tool_context.state.get(IMAGE_QUALITY_KEY, []):
+    for issue in image_quality_issues:
         gaps.append(f"Image quality: {issue}")
-    return {"observation_index": observation_index, "evidence_gaps": gaps}
+    return gaps
 
 
 def check_batch_history(concern_type: str, tool_context: ToolContext) -> dict:

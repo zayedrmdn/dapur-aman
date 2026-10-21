@@ -31,6 +31,7 @@ from agents.compliance.tools import (
     IMAGE_QUALITY_KEY,
     OBSERVATIONS_KEY,
     PRIOR_CONCERN_KEY,
+    evidence_gaps,
 )
 from agents.contract import (
     ActivityEvent,
@@ -333,8 +334,14 @@ class InspectionRun:
                 retryable=True,
             )
         returned_references = self.recorder.rule_references_returned()
+        image_quality_issues = self.vision_result.image_quality_issues
         return [
-            build_finding(observation, assessments[index], returned_references)
+            build_finding(
+                observation,
+                assessments[index],
+                returned_references,
+                evidence_gaps(observation.model_dump(mode="json"), image_quality_issues),
+            )
             for index, observation in enumerate(observations)
         ]
 
@@ -350,7 +357,10 @@ class InspectionRun:
 
 
 def build_finding(
-    observation: Observation, assessment: Assessment, returned_references: set[str]
+    observation: Observation,
+    assessment: Assessment,
+    returned_references: set[str],
+    tool_gaps: list[str],
 ) -> Finding:
     rule = None
     if assessment.rule_reference is not None:
@@ -370,9 +380,12 @@ def build_finding(
                 retryable=True,
             )
 
-    evidence_gap = assessment.evidence_gap
-    if rule is None and evidence_gap is None:
-        evidence_gap = "No rule in the rule table covers this concern."
+    gaps = list(tool_gaps)
+    if assessment.evidence_gap and assessment.evidence_gap not in gaps:
+        gaps.append(assessment.evidence_gap)
+    if rule is None and not gaps:
+        gaps.append("No rule in the rule table covers this concern.")
+    evidence_gap = " ".join(gaps) if gaps else None
     return Finding(
         level=rule.level if rule else "safety",
         concern_type=observation.concern_type,

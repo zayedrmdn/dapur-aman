@@ -215,3 +215,32 @@ def test_second_vision_run_drops_the_old_compliance_result():
     assert outcome.state == RunState.FAILED
     assert outcome.error.code == "compliance_not_run"
 
+
+def test_tool_evidence_gaps_stay_when_compliance_omits_them():
+    unlocated_object = {
+        "observations": [
+            {
+                "concern_type": "foreign_object",
+                "box": None,
+                "explanation": "Test data: something shiny near the tray edge.",
+                "uncertainty": None,
+            }
+        ],
+        "image_quality_issues": [],
+        "missing_evidence": [],
+    }
+    model = ScriptedLlm(
+        model="scripted",
+        replies=[
+            tool_calls(("inspect_photo", {})),
+            json_reply(unlocated_object),
+            tool_calls(("check_compliance", {})),
+            *compliance_replies("rule-table-v1:foreign-01"),
+            json_reply({"outcome": "review_required", "next_action": "Check it."}),
+        ],
+    )
+
+    outcome = run(model)
+
+    [finding] = outcome.findings
+    assert finding.evidence_gap == "The concern has no location in the photo."
