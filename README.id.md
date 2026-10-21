@@ -10,6 +10,34 @@ Dibuat oleh tim **Nexara Vision** untuk **Agentic AI Hackathon 2026**, bagian da
 
 Lihat [panduan pengembangan](DEVELOPMENT.md) untuk struktur proyek, tanggung jawab, dan kesepakatan kolaborasi.
 
+## Menjalankan secara lokal
+
+Butuh Node.js 24, npm, dan [uv](https://docs.astral.sh/uv/) (uv memasang Python 3.13 sendiri).
+
+**Backend** (http://localhost:8000):
+
+```
+cd backend
+uv sync
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+Cek: http://localhost:8000/health mengembalikan `{"status":"ok"}`.
+
+**Frontend** (http://localhost:3000):
+
+```
+cd frontend
+npm ci
+npm run dev
+```
+
+Sebelum push, jalankan `npm run lint` dan `npm run build`.
+
+**Environment:** salin `backend/.env.example` ke `backend/.env` dan `frontend/.env.example` ke `frontend/.env.local`, lalu isi nilainya secara lokal. Jangan pernah meng-commit file tersebut.
+
+**Model bersama:** `backend/agents/contract.py`; contoh statis ada di `backend/agents/examples/inspection_outcome.json`. Setelah backend punya skema API, buat tipe frontend saat backend berjalan: `npx openapi-typescript http://localhost:8000/openapi.json -o lib/api-types.ts` (di dalam `frontend/`). Jangan pernah mengubah file hasil generate secara manual.
+
 ## Tim
 
 | Nama   | Peran               | Cakupan peran                                          |

@@ -10,6 +10,34 @@ Built by team **Nexara Vision** for the **Agentic AI Hackathon 2026**, part of I
 
 See the [development guide](DEVELOPMENT.md) for structure, responsibilities, and collaboration agreements.
 
+## Run locally
+
+Needs Node.js 24, npm and [uv](https://docs.astral.sh/uv/) (uv installs Python 3.13 itself).
+
+**Backend** (http://localhost:8000):
+
+```
+cd backend
+uv sync
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+Check: http://localhost:8000/health returns `{"status":"ok"}`.
+
+**Frontend** (http://localhost:3000):
+
+```
+cd frontend
+npm ci
+npm run dev
+```
+
+Before a push, run `npm run lint` and `npm run build`.
+
+**Environment:** copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env.local`, then fill in values locally. Never commit them.
+
+**Shared models:** `backend/agents/contract.py`; a static example is in `backend/agents/examples/inspection_outcome.json`. Once the backend has API schemas, generate frontend types with the backend running: `npx openapi-typescript http://localhost:8000/openapi.json -o lib/api-types.ts` (inside `frontend/`). Never edit the generated file by hand.
+
 ## Team
 
 | Name   | Role                | What the role covers                                   |
