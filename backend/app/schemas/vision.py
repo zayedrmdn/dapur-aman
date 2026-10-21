@@ -18,6 +18,7 @@ class FindingCardSchema(BaseModel):
     detail: str  # e.g. "Pink near the bone • Salmonella risk"
     box: EvidenceBoxSchema | None = None
     icon_type: str = "safety"  # "safety", "quality", "warning"
+    state: Literal["open", "fixed", "dismissed"] = "open"
 
 
 class FoodComponentSchema(BaseModel):
@@ -34,6 +35,10 @@ class InspectionResponseSchema(BaseModel):
     summary_label: str  # e.g. "2 safety spots" or "No spots" (for UI-1 list)
     status: Literal["clean", "review_required", "retake_required"]
     primary_action_label: str  # e.g. "Fix these, then retake" or "Photo of the next table"
+    batch_id: str | None = None
+    run_id: str | None = None
+    photo_id: str | None = None
+    photo_url: str | None = None
     detected_components: list[FoodComponentSchema] = []  # for "Today's menu" chips
     findings: list[FindingCardSchema] = []  # for detail cards in UI-2
     image_quality_issues: list[str] = []

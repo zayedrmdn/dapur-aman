@@ -6,10 +6,30 @@ from app.schemas.vision import (
     FoodComponentSchema,
     InspectionResponseSchema,
 )
+from app.schemas.auth import (
+    LoginRequest,
+    LoginResponse,
+)
+from app.schemas.action import (
+    ActionRequest,
+    ActionResponse,
+)
+from app.schemas.batch import (
+    BatchDetailSchema,
+    BatchRunSchema,
+    HumanActionRecordSchema,
+)
 
 __all__ = [
     "EvidenceBoxSchema",
     "FindingCardSchema",
     "FoodComponentSchema",
     "InspectionResponseSchema",
+    "LoginRequest",
+    "LoginResponse",
+    "ActionRequest",
+    "ActionResponse",
+    "BatchDetailSchema",
+    "BatchRunSchema",
+    "HumanActionRecordSchema",
 ]
