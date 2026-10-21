@@ -6,15 +6,16 @@ Shared working reference for Dapur Aman: decisions, ownership, contracts and wor
 
 ## 1. Status and next actions
 
-**Status:** foundation done. `main` holds the verified `frontend/` and `backend/` skeletons and the contract models (§4); the branches `zayed/agents`, `rohmat/backend` and `finiko/frontend` were created from the foundation commit (§6). Paths named here that do not exist yet are planned. No application features, agents or tables exist yet.
+**Status (22 Oct):** integrated MVP on `main`. Staff journey works locally: login, photo upload, three ADK agents (Orchestrator, Vision, Compliance), findings with markers and rule references, saved agent activity, human action and retake. Verified with a scripted model in an isolated harness (`frontend/tests/README.md`) and one earlier real Vertex run. Start new work from `main` on your own branch (§6).
 
 | Area | State |
 | --- | --- |
 | Frontend packages | Bun, lockfile `frontend/bun.lock`; Next.js still runs on Node.js 24 (README) |
 | Backend packages | uv, Python 3.13, `backend/uv.lock` |
 | Neon | Project, private photo bucket and credentials configured and tested |
-| Vercel | Project configured (root `frontend/`); first production deployment not yet verified |
-| Cloud Run, Vertex AI | Waiting for the organizer's Google Cloud project and credits (delayed) |
+| Vercel | Production deploys from `main` (dapur-aman.vercel.app); login waits for the backend URL |
+| Vertex AI | Verified locally with the organizer project |
+| Cloud Run | Blocked: the build service account needs `roles/run.builder` and `roles/aiplatform.user` from the organizer |
 
 **Next actions**
 
