@@ -120,3 +120,36 @@ test("backend auth refusals map to clear statuses", async () => {
   try { assert.equal((await staffApi(request("overview", staff), "overview")).status, 503); }
   finally { process.env.BACKEND_SHARED_SECRET = previous; }
 });
+test("Cloud Run front-end refusals and bad invoker JSON are configuration errors", async () => {
+  const http = require("node:http");
+  const { signSession } = require("../lib/session.ts");
+  const seen = [];
+  let reply = { status: 403, type: "text/html", body: "<html>Forbidden</html>" };
+  const stub = http.createServer((incoming, outgoing) => {
+    seen.push(incoming.headers);
+    outgoing.writeHead(reply.status, { "Content-Type": reply.type }); outgoing.end(reply.body);
+  });
+  await new Promise(resolve => stub.listen(0, "127.0.0.1", resolve));
+  const previousUrl = process.env.BACKEND_URL;
+  process.env.BACKEND_URL = `http://127.0.0.1:${stub.address().port}`;
+  const cookie = `dapur_session=${signSession({ actor_id: "test_staff", name: "Staf", username: "local_staff", role: "kitchen_staff" }, process.env.SESSION_SECRET)}`;
+  try {
+    const html403 = await staffApi(request("overview", cookie), "overview");
+    assert.equal(html403.status, 503); assert.match((await html403.json()).detail, /Cloud Run/);
+    assert.equal(seen[0]["x-shared-secret"], "synthetic-local-secret"); assert.equal(seen[0].authorization, undefined);
+    reply = { status: 401, type: "text/html", body: "<html>Unauthorized</html>" };
+    assert.equal((await staffApi(request("login", null, { username: "local_staff", password: "x" }), "login")).status, 503);
+    reply = { status: 403, type: "application/json", body: JSON.stringify({ detail: "Supervisor access required." }) };
+    assert.equal((await staffApi(request("supervisor/feed", cookie), "supervisor/feed")).status, 403);
+    process.env.GCP_INVOKER_CREDENTIALS = "not-json";
+    const count = seen.length;
+    const invalid = await staffApi(request("overview", cookie), "overview");
+    assert.equal(invalid.status, 503); assert.match((await invalid.json()).detail, /GCP_INVOKER_CREDENTIALS/);
+    assert.equal((await staffApi(request("login", null, { username: "local_staff", password: "x" }), "login")).status, 503);
+    assert.equal(seen.length, count);
+  } finally {
+    delete process.env.GCP_INVOKER_CREDENTIALS;
+    process.env.BACKEND_URL = previousUrl;
+    await new Promise(resolve => stub.close(resolve));
+  }
+});

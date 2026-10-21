@@ -1,4 +1,5 @@
 import "server-only";
+import { GoogleAuth, type IdTokenClient } from "google-auth-library";
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_SECONDS, signSession, verifySession, type User } from "./session";
 
@@ -49,10 +50,43 @@ async function jsonBody(request: Request) {
   }
 }
 
-async function unauthorized(response: Response) {
+let invoker: { audience: string; client: Promise<IdTokenClient> } | undefined;
+
+function createInvoker(raw: string, audience: string) {
+  let credentials;
+  try { credentials = JSON.parse(raw); } catch { credentials = null; }
+  if (!credentials || Array.isArray(credentials) || typeof credentials !== "object") {
+    throw new RequestError(503, "GCP_INVOKER_CREDENTIALS bukan JSON akun layanan yang valid.");
+  }
+  return { audience, client: new GoogleAuth({ credentials }).getIdTokenClient(audience) };
+}
+
+async function cloudRunHeaders(base: URL): Promise<Record<string, string>> {
+  const raw = process.env.GCP_INVOKER_CREDENTIALS;
+  if (!raw) return {};
+  try {
+    if (invoker?.audience !== base.origin) invoker = createInvoker(raw, base.origin);
+    const authorization = (await (await invoker.client).getRequestHeaders()).get("authorization");
+    if (!authorization) throw new Error("missing authorization");
+    return { Authorization: authorization };
+  } catch (error) {
+    invoker = undefined;
+    if (error instanceof RequestError) throw error;
+    throw new RequestError(503, "Token Cloud Run tidak dapat dibuat. Periksa GCP_INVOKER_CREDENTIALS.");
+  }
+}
+
+async function backendDetail(response: Response) {
   const payload = await response.json().catch(() => null);
-  const unknownActor = typeof payload?.detail === "string" && /actor/i.test(payload.detail);
-  if (unknownActor) return new RequestError(401, "Akun sesi ini tidak dikenali. Silakan masuk kembali.");
+  if (typeof payload?.detail === "string") return payload.detail;
+  invoker = undefined;
+  throw new RequestError(503, "Cloud Run menolak permintaan server. Periksa GCP_INVOKER_CREDENTIALS dan izin invoker.");
+}
+
+async function refused(response: Response) {
+  const detail = await backendDetail(response);
+  if (response.status === 403) return new RequestError(403, "Akun Anda tidak berwenang untuk tindakan ini. Hanya supervisor yang dapat melakukannya.");
+  if (/actor/i.test(detail)) return new RequestError(401, "Akun sesi ini tidak dikenali. Silakan masuk kembali.");
   return new RequestError(503, "Backend menolak kunci server. Periksa BACKEND_SHARED_SECRET.");
 }
 
@@ -82,13 +116,13 @@ async function upstream(path: string, actorId?: string, data?: FormData | object
   const multipart = data instanceof FormData;
   if (data && !multipart) headers.set("Content-Type", "application/json");
   try {
+    for (const [name, value] of Object.entries(await cloudRunHeaders(url))) headers.set(name, value);
     const response = await fetch(new URL(path, url), {
       method: data ? "POST" : "GET", headers,
       body: data ? (multipart ? data : JSON.stringify(data)) : undefined,
       cache: "no-store", redirect: "error", signal: AbortSignal.timeout(150_000),
     });
-    if (response.status === 401) throw await unauthorized(response);
-    if (response.status === 403) throw new RequestError(403, "Akun Anda tidak berwenang untuk tindakan ini. Hanya supervisor yang dapat melakukannya.");
+    if (response.status === 401 || response.status === 403) throw await refused(response);
     const payload = await response.json();
     if (response.status >= 500 && !(response.status === 502 && payload?.detail?.run_id)) {
       throw new RequestError(502, "Backend belum dapat menyelesaikan permintaan. Muat ulang data tersimpan sebelum mencoba lagi.");
@@ -135,9 +169,10 @@ export async function staffApi(request: NextRequest, path: string) {
       const loginUrl = new URL(base);
       if (loginUrl.protocol !== "https:" && !(loginUrl.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(loginUrl.hostname))) throw new RequestError(503, "Backend memerlukan HTTPS.");
       const reply = await fetch(new URL("/api/auth/login", loginUrl), {
-        method: "POST", headers: { "Content-Type": "application/json", "X-Shared-Secret": secret },
+        method: "POST", headers: { "Content-Type": "application/json", "X-Shared-Secret": secret, ...(await cloudRunHeaders(loginUrl)) },
         body: JSON.stringify({ username: input.username.trim(), password: input.password }), cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15_000),
       });
+      if (reply.status === 401 || reply.status === 403) await backendDetail(reply);
       if (reply.status === 401) throw new RequestError(401, "Nama pengguna atau kata sandi salah.");
       if (!reply.ok) throw new RequestError(502, "Login backend belum tersedia.");
       const user: User = await reply.json();
