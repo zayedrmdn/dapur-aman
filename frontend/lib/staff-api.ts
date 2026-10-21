@@ -1,4 +1,5 @@
 import "server-only";
+import { GoogleAuth, type IdTokenClient } from "google-auth-library";
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_SECONDS, signSession, verifySession, type User } from "./session";
 
@@ -49,6 +50,59 @@ async function jsonBody(request: Request) {
   }
 }
 
+let invoker: { audience: string; client: Promise<IdTokenClient> } | undefined;
+
+function createInvoker(raw: string, audience: string) {
+  let credentials;
+  try { credentials = JSON.parse(raw); } catch { credentials = null; }
+  if (!credentials || Array.isArray(credentials) || typeof credentials !== "object") {
+    throw new RequestError(503, "GCP_INVOKER_CREDENTIALS bukan JSON akun layanan yang valid.");
+  }
+  return { audience, client: new GoogleAuth({ credentials }).getIdTokenClient(audience) };
+}
+
+async function cloudRunHeaders(base: URL): Promise<Record<string, string>> {
+  const raw = process.env.GCP_INVOKER_CREDENTIALS;
+  if (!raw) return {};
+  try {
+    if (invoker?.audience !== base.origin) invoker = createInvoker(raw, base.origin);
+    const authorization = (await (await invoker.client).getRequestHeaders()).get("authorization");
+    if (!authorization) throw new Error("missing authorization");
+    return { Authorization: authorization };
+  } catch (error) {
+    invoker = undefined;
+    if (error instanceof RequestError) throw error;
+    throw new RequestError(503, "Token Cloud Run tidak dapat dibuat. Periksa GCP_INVOKER_CREDENTIALS.");
+  }
+}
+
+async function backendDetail(response: Response) {
+  const payload = await response.json().catch(() => null);
+  if (typeof payload?.detail === "string") return payload.detail;
+  invoker = undefined;
+  throw new RequestError(503, "Cloud Run menolak permintaan server. Periksa GCP_INVOKER_CREDENTIALS dan izin invoker.");
+}
+
+async function refused(response: Response) {
+  const detail = await backendDetail(response);
+  if (response.status === 403) return new RequestError(403, "Akun Anda tidak berwenang untuk tindakan ini. Hanya supervisor yang dapat melakukannya.");
+  if (/actor/i.test(detail)) return new RequestError(401, "Akun sesi ini tidak dikenali. Silakan masuk kembali.");
+  return new RequestError(503, "Backend menolak kunci server. Periksa BACKEND_SHARED_SECRET.");
+}
+
+function actionError(input: Record<string, unknown>) {
+  const findingActions = ["fixed", "dismissed"];
+  const batchActions = ["on_hold", "lift_hold", "close"];
+  if (!ID.test(String(input.batch_id ?? ""))) return "Batch tidak valid.";
+  const action = String(input.action);
+  if (![...findingActions, ...batchActions].includes(action)) return "Tindakan tidak dikenal.";
+  const hasFinding = input.finding_id != null;
+  if (findingActions.includes(action) && !hasFinding) return "Pilih temuan yang valid.";
+  if (hasFinding && !ID.test(String(input.finding_id))) return "Pilih temuan yang valid.";
+  if (typeof input.reason !== "string" || input.reason.trim().length < 3 || input.reason.length > 2000) return "Tulis alasan (minimal 3 karakter).";
+  return null;
+}
+
 async function upstream(path: string, actorId?: string, data?: FormData | object) {
   const base = process.env.BACKEND_URL;
   const secret = process.env.BACKEND_SHARED_SECRET;
@@ -62,14 +116,13 @@ async function upstream(path: string, actorId?: string, data?: FormData | object
   const multipart = data instanceof FormData;
   if (data && !multipart) headers.set("Content-Type", "application/json");
   try {
+    for (const [name, value] of Object.entries(await cloudRunHeaders(url))) headers.set(name, value);
     const response = await fetch(new URL(path, url), {
       method: data ? "POST" : "GET", headers,
       body: data ? (multipart ? data : JSON.stringify(data)) : undefined,
       cache: "no-store", redirect: "error", signal: AbortSignal.timeout(150_000),
     });
-    if (response.status === 401 || response.status === 403) {
-      throw new RequestError(502, "Backend menolak akses. Periksa konfigurasi server atau akun.");
-    }
+    if (response.status === 401 || response.status === 403) throw await refused(response);
     const payload = await response.json();
     if (response.status >= 500 && !(response.status === 502 && payload?.detail?.run_id)) {
       throw new RequestError(502, "Backend belum dapat menyelesaikan permintaan. Muat ulang data tersimpan sebelum mencoba lagi.");
@@ -116,9 +169,10 @@ export async function staffApi(request: NextRequest, path: string) {
       const loginUrl = new URL(base);
       if (loginUrl.protocol !== "https:" && !(loginUrl.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(loginUrl.hostname))) throw new RequestError(503, "Backend memerlukan HTTPS.");
       const reply = await fetch(new URL("/api/auth/login", loginUrl), {
-        method: "POST", headers: { "Content-Type": "application/json", "X-Shared-Secret": secret },
+        method: "POST", headers: { "Content-Type": "application/json", "X-Shared-Secret": secret, ...(await cloudRunHeaders(loginUrl)) },
         body: JSON.stringify({ username: input.username.trim(), password: input.password }), cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15_000),
       });
+      if (reply.status === 401 || reply.status === 403) await backendDetail(reply);
       if (reply.status === 401) throw new RequestError(401, "Nama pengguna atau kata sandi salah.");
       if (!reply.ok) throw new RequestError(502, "Login backend belum tersedia.");
       const user: User = await reply.json();
@@ -137,15 +191,15 @@ export async function staffApi(request: NextRequest, path: string) {
     let result;
     if (request.method === "GET") {
       if (path === "overview") result = await upstream("/api/overview", session.actor_id);
+      else if (path === "supervisor/feed") result = await upstream("/api/supervisor/feed", session.actor_id);
       else if (/^batches\/[a-zA-Z0-9_-]{1,64}$/.test(path)) result = await upstream(`/api/${path}`, session.actor_id);
       else if (/^runs\/[a-zA-Z0-9_-]{1,64}\/events$/.test(path)) result = await upstream(`/api/${path}`, session.actor_id);
       else throw new RequestError(404, "Halaman data tidak ditemukan.");
     } else if (path === "actions" && request.method === "POST") {
       const input = await jsonBody(request);
-      if (!ID.test(input.batch_id ?? "") || !ID.test(input.finding_id ?? "") || !["fixed", "dismissed"].includes(input.action) || typeof input.reason !== "string" || input.reason.trim().length < 3 || input.reason.length > 2000) {
-        throw new RequestError(400, "Pilih temuan dan tulis alasan (minimal 3 karakter).");
-      }
-      result = await upstream("/api/actions", session.actor_id, { batch_id: input.batch_id, finding_id: input.finding_id, action: input.action, reason: input.reason.trim() });
+      const invalid = actionError(input);
+      if (invalid) throw new RequestError(400, invalid);
+      result = await upstream("/api/actions", session.actor_id, { batch_id: input.batch_id, finding_id: input.finding_id ?? null, action: input.action, reason: input.reason.trim() });
     } else if (path === "inspect" && request.method === "POST") {
       if (activeInspections.has(session.actor_id)) throw new RequestError(429, "Inspeksi Anda masih berjalan. Tunggu hasilnya.");
       const bytes = await body(request, MAX_PHOTO + 65_536);

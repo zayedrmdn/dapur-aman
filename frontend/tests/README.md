@@ -23,7 +23,7 @@ $env:SESSION_SECRET='synthetic-local-session-signing-key-32-characters'
 bun run dev --hostname 127.0.0.1 --port 3123
 ```
 
-Open `http://127.0.0.1:3123`, sign in as `local_staff` with `local-test-password`, and upload a JPEG/PNG/WebP with a table name and menu. Verify markers, rule references, uncertainty and saved AI activity; record a correction, refresh, then retake. Enter `FAIL` in the menu to exercise an intentionally failing scripted run. Check that its latest status never becomes clean. These environment overrides apply only to the current terminal; do not save them in real environment files.
+Open `http://127.0.0.1:3123`, sign in as `local_staff` with `local-test-password` (or `local_supervisor`, same password, for the supervisor feed and holds), and upload a JPEG/PNG/WebP with a table name and menu. Verify markers, rule references, uncertainty and saved AI activity; record a correction, refresh, then retake. Enter `FAIL` in the menu to exercise an intentionally failing scripted run. Check that its latest status never becomes clean. These environment overrides apply only to the current terminal; do not save them in real environment files.
 
 The automated handler test does not exercise browser hydration, canvas resizing, or visual layout. Those remain a browser check. On the restricted Windows agent environment, normal Next builds and browser spawns may fail with `EPERM`; TypeScript and an in-memory worker-thread build can run without changing project configuration.
 
