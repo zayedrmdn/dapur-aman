@@ -12,7 +12,7 @@ See the [development guide](DEVELOPMENT.md) for structure, responsibilities, and
 
 ## Run locally
 
-Needs Node.js 24, npm and [uv](https://docs.astral.sh/uv/) (uv installs Python 3.13 itself).
+Needs [Bun](https://bun.sh) 1.4 or later, Node.js 24 and [uv](https://docs.astral.sh/uv/) (uv installs Python 3.13 itself). Bun installs the frontend packages from `frontend/bun.lock`; do not use npm or pnpm. Next.js still runs on Node, so `node` must be on your PATH. On NixOS, run the frontend commands inside `nix shell nixpkgs#nodejs_24`.
 
 **Backend** (http://localhost:8000):
 
@@ -28,15 +28,15 @@ Check: http://localhost:8000/health returns `{"status":"ok"}`.
 
 ```
 cd frontend
-npm ci
-npm run dev
+bun install --frozen-lockfile
+bun run dev
 ```
 
-Before a push, run `npm run lint` and `npm run build`.
+Before a push, run `bun run lint` and `bun run build`.
 
 **Environment:** copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env.local`, then fill in values locally. Never commit them.
 
-**Shared models:** `backend/agents/contract.py`; a static example is in `backend/agents/examples/inspection_outcome.json`. Once the backend has API schemas, generate frontend types with the backend running: `npx openapi-typescript http://localhost:8000/openapi.json -o lib/api-types.ts` (inside `frontend/`). Never edit the generated file by hand.
+**Shared models:** `backend/agents/contract.py`; a static example is in `backend/agents/examples/inspection_outcome.json`. Once the backend has API schemas, generate frontend types with the backend running: `bunx openapi-typescript http://localhost:8000/openapi.json -o lib/api-types.ts` (inside `frontend/`). Never edit the generated file by hand.
 
 ## Team
 

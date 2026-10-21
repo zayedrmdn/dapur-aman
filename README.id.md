@@ -12,7 +12,7 @@ Lihat [panduan pengembangan](DEVELOPMENT.md) untuk struktur proyek, tanggung jaw
 
 ## Menjalankan secara lokal
 
-Butuh Node.js 24, npm, dan [uv](https://docs.astral.sh/uv/) (uv memasang Python 3.13 sendiri).
+Butuh [Bun](https://bun.sh) 1.4 atau lebih baru, Node.js 24, dan [uv](https://docs.astral.sh/uv/) (uv memasang Python 3.13 sendiri). Bun memasang paket frontend dari `frontend/bun.lock`; jangan pakai npm atau pnpm. Next.js tetap berjalan di Node, jadi `node` harus ada di PATH. Di NixOS, jalankan perintah frontend di dalam `nix shell nixpkgs#nodejs_24`.
 
 **Backend** (http://localhost:8000):
 
@@ -28,15 +28,15 @@ Cek: http://localhost:8000/health mengembalikan `{"status":"ok"}`.
 
 ```
 cd frontend
-npm ci
-npm run dev
+bun install --frozen-lockfile
+bun run dev
 ```
 
-Sebelum push, jalankan `npm run lint` dan `npm run build`.
+Sebelum push, jalankan `bun run lint` dan `bun run build`.
 
 **Environment:** salin `backend/.env.example` ke `backend/.env` dan `frontend/.env.example` ke `frontend/.env.local`, lalu isi nilainya secara lokal. Jangan pernah meng-commit file tersebut.
 
-**Model bersama:** `backend/agents/contract.py`; contoh statis ada di `backend/agents/examples/inspection_outcome.json`. Setelah backend punya skema API, buat tipe frontend saat backend berjalan: `npx openapi-typescript http://localhost:8000/openapi.json -o lib/api-types.ts` (di dalam `frontend/`). Jangan pernah mengubah file hasil generate secara manual.
+**Model bersama:** `backend/agents/contract.py`; contoh statis ada di `backend/agents/examples/inspection_outcome.json`. Setelah backend punya skema API, buat tipe frontend saat backend berjalan: `bunx openapi-typescript http://localhost:8000/openapi.json -o lib/api-types.ts` (di dalam `frontend/`). Jangan pernah mengubah file hasil generate secara manual.
 
 ## Tim
 

@@ -1,20 +1,27 @@
 # Development guide
 
-Shared working reference for Dapur Aman: decisions, ownership, contracts and workflow. There are no setup steps yet; they are added once the foundation exists (§1). Updated 21 October 2026.
+Shared working reference for Dapur Aman: decisions, ownership, contracts and workflow. Setup steps are in the README (Run locally). Updated 21 October 2026.
 
 **How to read the labels:** **Approved** marks project decisions Zayed has approved and recorded; it does not mean every team member has confirmed them. **Proposed (pending team confirmation)** means drafted but not yet agreed; do not build on it as final. **Unverified** means not yet checked against a primary source or a real test. Terms are explained in the [glossary](#8-glossary).
 
 ## 1. Status and next actions
 
-**Status:** planning only. The repository holds only documentation (this guide, the READMEs, the license). No application code, agents, tables, photo bucket, cloud projects or deployments exist yet; every application file and folder named here is planned and not yet created. Python 3.13 is the target but untested.
+**Status:** foundation done. `main` holds the verified `frontend/` and `backend/` skeletons and the contract models (§4); the branches `zayed/agents`, `rohmat/backend` and `finiko/frontend` were created from the foundation commit (§6). Paths named here that do not exist yet are planned. No application features, agents or tables exist yet.
+
+| Area | State |
+| --- | --- |
+| Frontend packages | Bun, lockfile `frontend/bun.lock`; Next.js still runs on Node.js 24 (README) |
+| Backend packages | uv, Python 3.13, `backend/uv.lock` |
+| Neon | Project, private photo bucket and credentials configured and tested |
+| Vercel | Project configured (root `frontend/`); first production deployment not yet verified |
+| Cloud Run, Vertex AI | Waiting for the organizer's Google Cloud project and credits (delayed) |
 
 **Next actions**
 
 1. Zayed shares any remaining organizer requirements from the seminar; check them against this guide.
 2. Team confirms everything marked *proposed*: ownership (§3), branch workflow (§6), agent-backend interface and analysis approach (§4), first milestone (below). Zayed coordinates.
-3. Coding starts once the team has authorized it (window opens 21 October 13:00 WIB). Cloud provisioning needs its own authorization.
-4. Zayed builds and pushes the foundation, then creates the development branches (§6).
-5. Build the first milestone with the simulated agent result, then replace it with the real three-agent run.
+3. Each developer works on their own branch (§6); Rohmat confirms the backend runs on their machine (Finiko's frontend already runs). Cloud provisioning needs its own authorization.
+4. Build the first milestone with the simulated agent result, then replace it with the real three-agent run.
 
 ### First milestone (proposed, pending team confirmation)
 
@@ -23,14 +30,14 @@ Shared working reference for Dapur Aman: decisions, ownership, contracts and wor
 | # | Who | Task | Depends on |
 | --- | --- | --- | --- |
 | 1 | Zayed + Rohmat | Agree `backend/agents/contract.py` and example input/output JSON (§4) | — |
-| 2 | Zayed | Foundation only (target 30 minutes): `frontend/` and `backend/` skeletons, `pyproject.toml` and `uv.lock`, contract stub. Verify startup and build, push to `main`, create the branches from that commit (§6), hand over `frontend/` to Finiko and the dependency files to Rohmat | 1 |
-| 3 | Zayed | After separate authorization, provision the Neon project and photo bucket; give Rohmat the Dapur Aman credentials. Never delays the task 2 handoffs | — |
+| 2 | Zayed | Done. Foundation only (target 30 minutes): `frontend/` and `backend/` skeletons, `pyproject.toml` and `uv.lock`, contract stub. Verify startup and build, push to `main`, create the branches from that commit (§6), hand over `frontend/` to Finiko and the dependency files to Rohmat | 1 |
+| 3 | Zayed | Done: Neon project, photo bucket and credentials configured and tested. Remaining: give Rohmat the Dapur Aman credentials. Never delays the task 2 handoffs | — |
 | 4 | Rohmat | FastAPI: shared-secret check, login against seeded accounts, upload, run endpoint calling `run_inspection`, saving run, events and photo, one human action | 1, 2, 3; 6 (simulated result) for the run endpoint |
 | 5 | Rohmat | Vision agent behind the contract | 1, 2 |
 | 6 | Zayed | During integration, after the foundation: simulated `run_inspection` (`fixture`) in `workflow.py`. Then the Orchestrator and Compliance/Research agents, replacing the simulated result | 1, 2 |
 | 7 | Finiko | Login and sessions, backend proxy, upload with phone-side resize, loading state, result screen with Aktivitas AI, one human action. Uses example JSON until generated types exist | 2 |
 | 8 | Rabab | First staged scenario (one menu): reference tray, normal tray, deliberate visible concern, unclear or cropped photo, corrective retake. Then 5–8 source-linked rule candidates | — |
-| 9 | Zayed | After authorization, set up Vercel and Cloud Run; deploy the approved `main` once owners have verified their parts | 4, 7 |
+| 9 | Zayed | Vercel is configured; Cloud Run after the Google Cloud project arrives and authorization. Deploy the approved `main` once owners have verified their parts | 4, 7 |
 
 **Milestone accepted when:** a seeded user logs in, uploads a photo, the backend returns a validated result (simulated, labelled as such), the result screen shows it, one human action is recorded with actor, time and reason, and run, events, photo and action all reload from Neon after a page refresh.
 
@@ -60,8 +67,8 @@ Three distinct Google ADK agents in one Python backend and one deployment, not s
 
 | Area | Decision |
 | --- | --- |
-| Frontend | `frontend/` (planned): Next.js 16, TypeScript, Tailwind CSS, Material UI, d3. Vercel Hobby |
-| Backend | `backend/` (planned): Python 3.13, FastAPI, Google ADK. Cloud Run, Singapore (`asia-southeast1`), subject to organizer requirements. Dependencies with uv (`pyproject.toml`, `uv.lock`; proposed) |
+| Frontend | `frontend/`: Next.js 16, TypeScript, Tailwind CSS, Material UI, d3. Packages with Bun (`bun.lock`); Next.js runs on Node.js 24. Vercel Hobby |
+| Backend | `backend/`: Python 3.13, FastAPI, Google ADK. Cloud Run, Singapore (`asia-southeast1`), subject to organizer requirements. Dependencies with uv (`pyproject.toml`, `uv.lock`) |
 | AI provider | Gemini through Vertex AI in our Google Cloud project, initially primary. OpenRouter (through LiteLLM) is the manual alternative. Switch by configuration and redeploy (proposed names `AI_PROVIDER`, `AI_MODEL`) |
 | Gemini auth | Local: Application Default Credentials. Cloud Run: service account. No key files. Vertex flag depends on the installed ADK version: `GOOGLE_GENAI_USE_ENTERPRISE` (current docs) or `GOOGLE_GENAI_USE_VERTEXAI` (older). The model location may differ from Singapore |
 | Database | Neon Postgres: dedicated Dapur Aman project in Zayed's console-managed Free organization, Singapore |
@@ -144,11 +151,11 @@ flowchart LR
   VI & OR & CO -.-> AI["Gemini via Vertex AI"]
 ```
 
-### Folder ownership (all planned, not yet created)
+### Folder ownership
 
 | Path | Owner | Contents |
 | --- | --- | --- |
-| `backend/pyproject.toml`, `backend/uv.lock` | Rohmat, after Zayed creates them | Dependencies. Zayed asks Rohmat for agent dependency changes |
+| `backend/pyproject.toml`, `backend/uv.lock` | Rohmat | Dependencies. Zayed asks Rohmat for agent dependency changes |
 | `backend/app/` | Rohmat | FastAPI app, endpoints, backend auth and authorization, database, photo storage, human actions |
 | `backend/app/schemas/` | Rohmat | HTTP API schemas; the source of the OpenAPI output |
 | `backend/agents/contract.py` | **Shared** | Pydantic models for the agent-backend interface (§4); no logic. Breaking changes need both Zayed and Rohmat |
@@ -297,8 +304,8 @@ The backend also records provider, model and rule version with each run.
 | Organizer requirements | Remaining seminar information; do not assume there are none | Zayed |
 | Demo data | Staged photos labelled as test data; no claim of real kitchen validation | Rabab |
 | Models and runtime | Exact Gemini model and location, OpenRouter model; image input, tools and structured output on Python 3.13 across all three agents; both providers on identical cases, including invalid output and tool failure; latency against the §2 limits | Zayed; Rohmat for Vision |
-| Credit | Whether the $300 covers Vertex AI and Cloud Run; quotas, expiry, billing | Zayed |
-| Neon | Provision the project; verify signed-link behaviour on the real bucket | Zayed, then Rohmat |
+| Google Cloud | The organizer's Google Cloud project and credits are delayed; Cloud Run and Vertex AI wait for them. Then: whether the $300 covers Vertex AI and Cloud Run; quotas, expiry, billing | Organizers, then Zayed |
+| Vercel deploy | Verify the first production deployment from `main` | Zayed |
 | Vercel author check | Whether Vercel Hobby deploys commits authored by someone other than the Vercel account owner (Zayed). Pass: a preview deploy of `finiko/frontend` succeeds. If not, Zayed deploys manually | Zayed |
 | Activity mapping | Map actual ADK and tool events to the event fields | Zayed and Rohmat |
 | Rules | Start with 5–8 source-linked rules, each marked verified, pending verification or demo assumption. Qualified review pending; checks never certify food as safe. Decide later whether retrieval is needed | Zayed, sources from Rabab |
@@ -340,7 +347,7 @@ gitGraph
   commit id: "deploy main"
 ```
 
-**Setup (Zayed, once):**
+**Setup (Zayed, once; done 21 October, branches start at `724546d`):**
 
 1. Initialize and verify the foundation; commit and push it to `main`.
 2. Create all three branches from that same verified commit, without switching branches in between:
