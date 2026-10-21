@@ -11,7 +11,7 @@ from agents.contract import (
     RunState,
 )
 from agents.providers import ProviderSettings
-from agents.workflow import run_inspection, run_inspection_with
+from agents.workflow import FORMAT_REPAIR_REQUEST, run_inspection, run_inspection_with
 from tests.agents.scripted_llm import (
     ScriptedLlm,
     build_test_vision_agent,
@@ -146,12 +146,13 @@ def test_skipping_vision_fails_the_run():
     assert outcome.error.code == "vision_not_run"
 
 
-def test_invalid_vision_reply_fails_the_run():
+def test_invalid_vision_reply_fails_after_one_retry():
     model = ScriptedLlm(
         model="scripted",
         replies=[
             tool_calls(("inspect_photo", {})),
             json_reply({"looks": "fine"}),
+            json_reply({"still": "wrong"}),
         ],
     )
 
@@ -244,3 +245,37 @@ def test_tool_evidence_gaps_stay_when_compliance_omits_them():
 
     [finding] = outcome.findings
     assert finding.evidence_gap == "The concern has no location in the photo."
+
+
+def test_invalid_vision_reply_is_retried_once():
+    model = ScriptedLlm(
+        model="scripted",
+        replies=[
+            tool_calls(("inspect_photo", {})),
+            json_reply({"looks": "fine"}),
+            json_reply(FOREIGN_OBJECT_SEEN),
+            tool_calls(("check_compliance", {})),
+            *compliance_replies("rule-table-v1:foreign-01"),
+            json_reply({"outcome": "review_required", "next_action": "Check it."}),
+        ],
+    )
+
+    outcome = run(model)
+
+    assert outcome.state == RunState.COMPLETED
+    [retry] = [event for event in outcome.events if event.status == "retrying"]
+    assert retry.step == "vision_reply_check"
+    assert retry.parent_step == "inspect_photo"
+    repair_request = model.requests[2].contents[-1].parts[0].text
+    assert repair_request == FORMAT_REPAIR_REQUEST
+
+
+def test_model_failure_is_not_retried():
+    model = ScriptedLlm(model="scripted", replies=[tool_calls(("inspect_photo", {}))])
+
+    outcome = run(model)
+
+    assert outcome.state == RunState.FAILED
+    assert outcome.error.code == "model_error"
+    assert len(model.requests) == 2
+    assert not [event for event in outcome.events if event.status == "retrying"]

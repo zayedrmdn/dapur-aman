@@ -59,6 +59,10 @@ APP_NAME = "dapur_aman"
 USER_ID = "backend"
 RUN_TIMEOUT_SECONDS = 120
 MAX_MODEL_CALLS_PER_AGENT = 10
+FORMAT_REPAIR_REQUEST = (
+    "Your last reply did not match the required JSON format. Reply again with "
+    "JSON only, in the format from your instructions. Do not call any tool again."
+)
 
 VisionBuilder = Callable[[str | BaseLlm], BaseAgent]
 
@@ -176,10 +180,13 @@ class InspectionRun:
         orchestrator = build_orchestrator_agent(
             self.model, self.inspect_photo, self.check_compliance
         )
-        reply = await run_agent(
-            orchestrator, text_message(self.orchestrator_briefing()), {}, self.recorder
+        return await run_agent(
+            orchestrator,
+            text_message(self.orchestrator_briefing()),
+            {},
+            self.recorder,
+            OrchestratorDecision,
         )
-        return parse_reply(reply, OrchestratorDecision, "orchestrator")
 
     async def inspect_photo(self) -> dict:
         """Run the Vision agent on the tray photo and return its observations."""
@@ -200,8 +207,9 @@ class InspectionRun:
     async def run_vision(self) -> dict:
         self.compliance_result = None
         vision = self.vision_builder(self.model)
-        reply = await run_agent(vision, self.vision_message(), {}, self.recorder)
-        self.vision_result = parse_reply(reply, VisionObservation, "vision")
+        self.vision_result = await run_agent(
+            vision, self.vision_message(), {}, self.recorder, VisionObservation
+        )
         observations = self.vision_result.observations
         return {
             "summary": f"Vision reported {len(observations)} observation(s).",
@@ -222,13 +230,13 @@ class InspectionRun:
         if self.vision_result is None:
             return {"error": "Run inspect_photo first."}
         compliance = build_compliance_agent(self.model)
-        reply = await run_agent(
+        self.compliance_result = await run_agent(
             compliance,
             text_message("Assess the observations in the session state."),
             self.compliance_state(),
             self.recorder,
+            ComplianceResult,
         )
-        self.compliance_result = parse_reply(reply, ComplianceResult, "compliance")
         return {
             "summary": (
                 f"Compliance assessed {len(self.compliance_result.assessments)} "
@@ -419,16 +427,36 @@ async def run_agent(
     message: types.Content,
     state: dict,
     recorder: ActivityRecorder,
-) -> str:
+    reply_model: type[BaseModel],
+) -> BaseModel:
     app = App(name=APP_NAME, root_agent=agent, plugins=[recorder])
     runner = InMemoryRunner(app=app)
     session = await runner.session_service.create_session(
         app_name=APP_NAME, user_id=USER_ID, state=state
     )
+    reply = await ask_agent(runner, session.id, agent, message)
+    try:
+        return parse_reply(reply, reply_model, agent.name)
+    except InspectionFailure:
+        recorder.record(
+            step=f"{agent.name}_reply_check",
+            parent_step=recorder.parent_step(),
+            agent="workflow",
+            kind="validation",
+            status="retrying",
+            summary=f"The {agent.name} reply did not match the expected format; asked once more.",
+        )
+    reply = await ask_agent(runner, session.id, agent, text_message(FORMAT_REPAIR_REQUEST))
+    return parse_reply(reply, reply_model, agent.name)
+
+
+async def ask_agent(
+    runner: InMemoryRunner, session_id: str, agent: BaseAgent, message: types.Content
+) -> str:
     run_config = RunConfig(max_llm_calls=MAX_MODEL_CALLS_PER_AGENT)
-    final_text = None
+    final_text = ""
     async for event in runner.run_async(
-        user_id=USER_ID, session_id=session.id, new_message=message, run_config=run_config
+        user_id=USER_ID, session_id=session_id, new_message=message, run_config=run_config
     ):
         if event.error_code:
             raise fail(
