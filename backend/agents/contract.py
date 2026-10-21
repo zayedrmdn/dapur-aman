@@ -58,6 +58,7 @@ class Photo(BaseModel):
 class Menu(BaseModel):
     menu_id: str
     name: str
+    items: list[str] = []
     reference_photo: Photo | None = None
 
 
@@ -86,10 +87,19 @@ class Observation(BaseModel):
     uncertainty: str | None = None
 
 
+class ComponentCheck(BaseModel):
+    item_name: str
+    status: Literal["present", "missing", "substituted", "unclear"] = "present"
+    box: EvidenceBox | None = None
+    note: str | None = None
+
+
 class VisionObservation(BaseModel):
     observations: list[Observation]
     image_quality_issues: list[str] = []
     missing_evidence: list[str] = []
+    detected_components: list[ComponentCheck] = []
+    summary_label: str = "No spots"
 
 
 class RunError(BaseModel):
