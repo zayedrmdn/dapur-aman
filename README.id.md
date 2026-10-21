@@ -8,6 +8,8 @@ Dibuat oleh tim **Nexara Vision** untuk **Agentic AI Hackathon 2026**, bagian da
 
 > Masih dalam pengerjaan. Kode ditulis selama 24 jam masa hacking (21–22 Oktober 2026).
 
+Lihat [panduan pengembangan](DEVELOPMENT.md) untuk struktur proyek, tanggung jawab, dan kesepakatan kolaborasi.
+
 ## Tim
 
 | Nama   | Peran               | Cakupan peran                                          |

@@ -8,6 +8,8 @@ Built by team **Nexara Vision** for the **Agentic AI Hackathon 2026**, part of I
 
 > Work in progress. Code is written during the 24-hour hacking window (21–22 October 2026).
 
+See the [development guide](DEVELOPMENT.md) for structure, responsibilities, and collaboration agreements.
+
 ## Team
 
 | Name   | Role                | What the role covers                                   |
