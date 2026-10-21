@@ -65,6 +65,8 @@ from app.schemas import (
     FindingCardSchema,
     EvidenceBoxSchema,
     HumanActionRecordSchema,
+    BatchOverviewSchema,
+    PackingPhotoRowSchema,
 )
 from agents.vision.agent import get_vision_agent
 
@@ -159,6 +161,7 @@ async def inspect_food_photo(
         "Nasi putih, Ayam kecap, Tumis buncis, Tahu goreng, Anggur",
         description="Daftar komponen menu hari ini, dipisahkan koma",
     ),
+    batch_id: str | None = Form(None, description="Opsional: ID batch untuk mengelompokkan beberapa meja/baki"),
     x_actor_id: str | None = Header(None, alias="X-Actor-Id"),
     x_shared_secret: str | None = Header(None, alias="X-Shared-Secret"),
     db: Session = Depends(get_db),
@@ -200,12 +203,12 @@ async def inspect_food_photo(
 
     # 2. Generate persistent database IDs
     unique_suffix = uuid.uuid4().hex[:10]
-    batch_id = f"batch_{unique_suffix}"
+    active_batch_id = batch_id.strip() if batch_id and batch_id.strip() else f"batch_{unique_suffix}"
     photo_id = f"pho_{unique_suffix}"
     run_id = f"run_{unique_suffix}"
 
     # 3. Upload photo to Neon Object Storage
-    storage_key = f"photos/{batch_id}/{photo_id}.jpg"
+    storage_key = f"photos/{active_batch_id}/{photo_id}.jpg"
     try:
         upload_photo_bytes(storage_key, photo_bytes, content_type)
         presigned_photo_url = generate_presigned_url(storage_key, expires_in=600)
@@ -234,18 +237,20 @@ async def inspect_food_photo(
 
     # 6. Persist to Neon Postgres
     try:
-        new_batch = Batch(
-            id=batch_id,
-            menu_id="MBG-01",
-            menu_name=clean_table_name,
-            table_name=clean_table_name,
-            status="in_review",
-        )
-        db.add(new_batch)
+        existing_batch = db.query(Batch).filter(Batch.id == active_batch_id).first()
+        if not existing_batch:
+            new_batch = Batch(
+                id=active_batch_id,
+                menu_id="MBG-01",
+                menu_name=clean_table_name,
+                table_name=clean_table_name,
+                status="in_review",
+            )
+            db.add(new_batch)
 
         new_photo = Photo(
             id=photo_id,
-            batch_id=batch_id,
+            batch_id=active_batch_id,
             object_key=storage_key,
             media_type=content_type,
             file_size_bytes=len(photo_bytes),
@@ -254,7 +259,7 @@ async def inspect_food_photo(
 
         new_run = Run(
             id=run_id,
-            batch_id=batch_id,
+            batch_id=active_batch_id,
             photo_id=photo_id,
             state="completed",
             outcome=result.status,
@@ -275,7 +280,7 @@ async def inspect_food_photo(
             new_finding = Finding(
                 id=finding_id,
                 run_id=run_id,
-                batch_id=batch_id,
+                batch_id=active_batch_id,
                 level=finding.level,
                 concern_type=finding.title,
                 box_json=finding.box.model_dump() if finding.box else None,
@@ -305,12 +310,121 @@ async def inspect_food_photo(
         logger.exception("Gagal menyimpan hasil inspeksi ke Neon DB: %s", e)
 
     # 7. Enrich response with IDs and signed photo URL
-    result.batch_id = batch_id
+    result.batch_id = active_batch_id
     result.run_id = run_id
     result.photo_id = photo_id
     result.photo_url = presigned_photo_url
 
     return result
+
+
+@app.get(
+    "/api/overview",
+    response_model=BatchOverviewSchema,
+    tags=["Batch & History"],
+    summary="Ambil data lengkap untuk UI-1 (Overview Screen: headline, today's menu, list meja)",
+)
+@app.get(
+    "/api/batches/overview",
+    response_model=BatchOverviewSchema,
+    tags=["Batch & History"],
+    summary="Alias overview batch",
+)
+def get_batch_overview(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_shared_secret),
+) -> BatchOverviewSchema:
+    """Mengembalikan data lengkap yang siap pakai untuk tampilan UI-1:
+    - Judul Header & Dapur ('Dapur Aman', 'SPPG Cibeureum Synthetic demo')
+    - Subtitle ('Batch 07 • Nasi ayam kecap • 410 trays')
+    - Headline ('4 photos checked, packing goes on')
+    - Today's menu chips ('Nasi putih', 'Ayam kecap', 'Tumis buncis', 'Tahu goreng', 'Anggur')
+    - Daftar baki/meja ('Table 1', 'Table 2', 'Table 3', 'Rack A') beserta status temuan & waktu
+    """
+    batches = db.query(Batch).order_by(Batch.created_at.asc()).all()
+
+    packing_photos: list[PackingPhotoRowSchema] = []
+    for b in batches:
+        latest_run = (
+            sorted(b.runs, key=lambda r: r.created_at, reverse=True)[0]
+            if b.runs
+            else None
+        )
+
+        # Format label ringkasan (misal: "2 safety spots • 1 fixed, 1 dismissed • retaken")
+        base_label = (
+            latest_run.summary_label
+            if latest_run and latest_run.summary_label
+            else "No spots"
+        )
+
+        fixed_count = sum(1 for a in b.actions if a.action == "fixed")
+        dismissed_count = sum(1 for a in b.actions if a.action == "dismissed")
+        action_parts = []
+        if fixed_count:
+            action_parts.append(f"{fixed_count} fixed")
+        if dismissed_count:
+            action_parts.append(f"{dismissed_count} dismissed")
+
+        if action_parts:
+            summary_label = f"{base_label} • {', '.join(action_parts)} • retaken"
+        else:
+            summary_label = base_label
+
+        time_str = b.created_at.strftime("%H:%M") if b.created_at else "08:00"
+
+        photo_url = None
+        if b.photos:
+            latest_photo = sorted(b.photos, key=lambda p: p.created_at, reverse=True)[0]
+            try:
+                photo_url = generate_presigned_url(latest_photo.object_key, expires_in=600)
+            except Exception:
+                photo_url = None
+
+        row_status = (
+            latest_run.outcome
+            if latest_run
+            and latest_run.outcome in ("clean", "review_required", "retake_required")
+            else "clean"
+        )
+
+        packing_photos.append(
+            PackingPhotoRowSchema(
+                batch_id=b.id,
+                table_name=b.table_name or b.menu_name,
+                summary_label=summary_label,
+                timestamp_str=time_str,
+                status=row_status,
+                photo_url=photo_url,
+                has_check=True,
+            )
+        )
+
+    # Headline dinamis sesuai jumlah foto yang diperiksa
+    photos_count = len(packing_photos)
+    headline = (
+        f"{photos_count} photos checked, packing goes on"
+        if photos_count > 0
+        else "Ready for inspection, packing goes on"
+    )
+
+    return BatchOverviewSchema(
+        app_title="Dapur Aman",
+        kitchen_name="SPPG Cibeureum Synthetic demo",
+        batch_subtitle="Batch 07 • Nasi ayam kecap • 410 trays",
+        headline=headline,
+        today_menu_setter="Siti",
+        today_menu_items=[
+            "Nasi putih",
+            "Ayam kecap",
+            "Tumis buncis",
+            "Tahu goreng",
+            "Anggur",
+        ],
+        packing_photos=packing_photos,
+        primary_action_label="Photo of the next table",
+        helper_text="One photo per table or rack, before the lids go on. Any angle is fine.",
+    )
 
 
 @app.get(

@@ -18,6 +18,8 @@ from app.schemas.batch import (
     BatchDetailSchema,
     BatchRunSchema,
     HumanActionRecordSchema,
+    PackingPhotoRowSchema,
+    BatchOverviewSchema,
 )
 
 __all__ = [
@@ -32,4 +34,6 @@ __all__ = [
     "BatchDetailSchema",
     "BatchRunSchema",
     "HumanActionRecordSchema",
+    "PackingPhotoRowSchema",
+    "BatchOverviewSchema",
 ]
