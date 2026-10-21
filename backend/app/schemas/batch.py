@@ -29,6 +29,10 @@ class BatchRunSchema(BaseModel):
     primary_action_label: str
     provider: str
     model: str
+    photo_id: str | None = None
+    photo_url: str | None = None
+    uncertainty: list[str] = []
+    error: dict | None = None
     created_at: datetime
 
 

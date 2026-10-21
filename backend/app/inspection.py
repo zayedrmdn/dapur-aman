@@ -37,9 +37,11 @@ def spot_count_label(count: int, level: str) -> str:
 
 
 def ui_texts(outcome: InspectionOutcome) -> dict[str, str]:
+    if outcome.outcome == Outcome.NO_VISIBLE_CONCERN and outcome.uncertainty:
+        return {"headline": "Visible check needs human review", "summary_label": "Uncertainty needs review", "primary_action_label": "Review or retake the photo"}
     if outcome.outcome == Outcome.NO_VISIBLE_CONCERN:
         return {
-            "headline": "No visible concerns, packing goes on",
+            "headline": "No visible concerns found; this does not prove food is safe",
             "summary_label": "No spots",
             "primary_action_label": "Photo of the next table",
         }
@@ -92,7 +94,7 @@ def build_response(
     return InspectionResponseSchema(
         table_name=table_name,
         timestamp_str=timestamp_str,
-        status=UI_STATUS_BY_OUTCOME[outcome.outcome],
+        status="review_required" if outcome.outcome == Outcome.NO_VISIBLE_CONCERN and outcome.uncertainty else UI_STATUS_BY_OUTCOME[outcome.outcome],
         findings=[
             finding_card(finding, finding_id)
             for finding, finding_id in zip(outcome.findings, finding_ids, strict=True)

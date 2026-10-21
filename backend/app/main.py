@@ -337,6 +337,7 @@ async def inspect_food_photo(
                 "message": outcome.error.message,
                 "retryable": outcome.error.retryable,
                 "run_id": run_id,
+                "batch_id": active_batch_id,
             },
         )
 
@@ -366,6 +367,14 @@ def batch_history(db: Session, batch_id: str) -> list[ContractFinding]:
         )
         for row in rows
     ]
+
+
+def run_display_status(run: Run | None) -> str:
+    if not run or run.state != "completed" or run.outcome not in ("clean", "review_required", "retake_required"):
+        return "retake_required"
+    if run.outcome == "clean" and (run.uncertainty_json or any(f.status == "open" for f in run.batch.findings)):
+        return "review_required"
+    return run.outcome
 
 
 @app.get(
@@ -401,12 +410,13 @@ def get_batch_overview(
             else None
         )
 
-        # Format label ringkasan (misal: "2 safety spots • 1 fixed, 1 dismissed • retaken")
-        base_label = (
-            latest_run.summary_label
-            if latest_run and latest_run.summary_label
-            else "No spots"
-        )
+        row_status = run_display_status(latest_run)
+        completed = bool(latest_run and latest_run.state == "completed" and latest_run.outcome in ("clean", "review_required", "retake_required"))
+        base_label = {
+            "clean": "No visible concerns; human review still required",
+            "review_required": "Findings or uncertainty need human review",
+            "retake_required": "Inspection incomplete or photo needs retake",
+        }[row_status]
 
         fixed_count = sum(1 for a in b.actions if a.action == "fixed")
         dismissed_count = sum(1 for a in b.actions if a.action == "dismissed")
@@ -417,7 +427,7 @@ def get_batch_overview(
             action_parts.append(f"{dismissed_count} dismissed")
 
         if action_parts:
-            summary_label = f"{base_label} • {', '.join(action_parts)} • retaken"
+            summary_label = f"{base_label}; {', '.join(action_parts)}"
         else:
             summary_label = base_label
 
@@ -431,13 +441,6 @@ def get_batch_overview(
             except Exception:
                 photo_url = None
 
-        row_status = (
-            latest_run.outcome
-            if latest_run
-            and latest_run.outcome in ("clean", "review_required", "retake_required")
-            else "clean"
-        )
-
         packing_photos.append(
             PackingPhotoRowSchema(
                 batch_id=b.id,
@@ -446,17 +449,11 @@ def get_batch_overview(
                 timestamp_str=time_str,
                 status=row_status,
                 photo_url=photo_url,
-                has_check=True,
+                has_check=completed,
             )
         )
 
-    # Headline dinamis sesuai jumlah foto yang diperiksa
-    photos_count = len(packing_photos)
-    headline = (
-        f"{photos_count} photos checked, packing goes on"
-        if photos_count > 0
-        else "Ready for inspection, packing goes on"
-    )
+    headline = f"{len(packing_photos)} batch inspections recorded; review each status before serving"
 
     supervisor = db.query(User).filter(User.role == "supervisor").first()
     latest_batch = batches[-1] if batches else None
@@ -466,13 +463,7 @@ def get_batch_overview(
         batch_subtitle=f"{latest_batch.id}: {latest_batch.menu_name}" if latest_batch else "No batches yet",
         headline=headline,
         today_menu_setter=supervisor.name if supervisor else "Not recorded",
-        today_menu_items=[
-            "Nasi putih",
-            "Ayam kecap",
-            "Tumis buncis",
-            "Tahu goreng",
-            "Anggur",
-        ],
+        today_menu_items=[],
         packing_photos=packing_photos,
         primary_action_label="Photo of the next table",
         helper_text="One photo per table or rack, before the lids go on. Any angle is fine.",
@@ -662,21 +653,30 @@ def get_batch_detail(
         except Exception:
             photo_url = None
 
-    # Format runs
-    runs_data = [
-        BatchRunSchema(
-            id=r.id,
-            state=r.state,
-            outcome=r.outcome or "completed",
-            headline=r.headline or "",
-            summary_label=r.summary_label or "",
-            primary_action_label=r.primary_action_label or r.next_action or "",
-            provider=r.provider,
-            model=r.model,
-            created_at=r.created_at,
-        )
-        for r in batch.runs
-    ]
+    runs_data = []
+    for run in batch.runs:
+        display_status = run_display_status(run)
+        if run.state != "completed" or not run.outcome:
+            headline = "Inspection incomplete; retry or retake"
+        elif display_status == "review_required" and run.outcome == "clean":
+            headline = "Uncertainty or open findings need human review"
+        else:
+            headline = run.headline or "Human review required"
+        runs_data.append(BatchRunSchema(
+            id=run.id,
+            state=run.state,
+            outcome=display_status,
+            photo_id=run.photo_id,
+            photo_url=signed_photo_url(next((photo for photo in batch.photos if photo.id == run.photo_id), None)),
+            uncertainty=run.uncertainty_json or [],
+            error=run.error_json,
+            headline=headline,
+            summary_label=(run.summary_label or headline) if display_status == run.outcome else headline,
+            primary_action_label=run.primary_action_label or run.next_action or "",
+            provider=run.provider,
+            model=run.model,
+            created_at=run.created_at,
+        ))
 
     findings_data = [saved_finding_card(finding, db) for finding in batch.findings]
 
@@ -744,10 +744,13 @@ def record_human_action(
                 detail="Hanya supervisor yang berwenang menempatkan atau mencabut status on_hold.",
             )
 
+    if payload.action in ("fixed", "dismissed") and not payload.finding_id:
+        raise HTTPException(status_code=400, detail="A finding_id is required for this action.")
+
     # 2. Handle finding-level actions
     if payload.finding_id:
         finding = db.query(Finding).filter(Finding.id == payload.finding_id).first()
-        if not finding:
+        if not finding or finding.batch_id != batch.id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Finding '{payload.finding_id}' tidak ditemukan.",
@@ -813,3 +816,17 @@ def record_human_action(
         actor_name=actor.name,
         message=f"Tindakan '{payload.action}' berhasil dicatat oleh {actor.name}.",
     )
+
+
+@app.get("/api/runs/{run_id}/events", tags=["Batch & History"])
+def get_run_events(run_id: str, db: Session = Depends(get_db), _: None = Depends(verify_shared_secret)) -> dict:
+    if not db.get(Run, run_id):
+        raise HTTPException(status_code=404, detail="Run not found.")
+    events = db.query(ActivityEvent).filter(ActivityEvent.run_id == run_id).order_by(ActivityEvent.sequence).all()
+    return {"run_id": run_id, "events": [
+        {"sequence": event.sequence, "timestamp": event.timestamp, "agent": event.agent,
+         "step": event.step, "parent_step": event.parent_step, "kind": event.kind,
+         "status": event.status, "summary": event.summary, "references": event.references_json or [],
+         "uncertainty": event.uncertainty, "error": event.error}
+        for event in events
+    ]}
