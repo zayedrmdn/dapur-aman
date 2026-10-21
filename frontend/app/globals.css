@@ -28,3 +28,7 @@ body {
   color: var(--color-ink);
   font-variant-numeric: tabular-nums;
 }
+
+::selection { background: var(--color-mint); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+input, textarea { caret-color: var(--color-brand); }
