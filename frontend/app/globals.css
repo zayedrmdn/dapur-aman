@@ -1,0 +1,30 @@
+@layer theme, base, mui, components, utilities;
+@import "tailwindcss";
+
+@theme inline {
+  --color-brand: var(--mui-palette-primary-main);
+  --color-brand-dark: var(--mui-palette-primary-dark);
+  --color-mint: var(--mui-palette-primary-light);
+  --color-safety: var(--mui-palette-error-main);
+  --color-safety-ink: var(--mui-palette-error-dark);
+  --color-safety-bg: var(--mui-palette-error-light);
+  --color-quality: var(--mui-palette-warning-main);
+  --color-quality-ink: var(--mui-palette-warning-dark);
+  --color-quality-bg: var(--mui-palette-warning-light);
+  --color-ground: var(--mui-palette-background-default);
+  --color-paper: var(--mui-palette-background-paper);
+  --color-ink: var(--mui-palette-text-primary);
+  --color-ink2: var(--mui-palette-text-secondary);
+  --color-rule: var(--mui-palette-divider);
+  --font-sans: var(--font-rubik);
+  --breakpoint-sm: 37.5rem;
+  --breakpoint-md: 56.25rem;
+  --breakpoint-lg: 75rem;
+  --breakpoint-xl: 96rem;
+}
+
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
