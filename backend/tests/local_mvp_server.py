@@ -28,6 +28,7 @@ engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, p
 Base.metadata.create_all(engine)
 with Session(engine) as db:
     db.add(User(id="test_staff", username="local_staff", name="Staf Pengujian Terisolasi", role="kitchen_staff", password_hash=hash_password("local-test-password")))
+    db.add(User(id="test_supervisor", username="local_supervisor", name="Supervisor Pengujian Terisolasi", role="supervisor", password_hash=hash_password("local-test-password")))
     db.commit()
 
 def database():

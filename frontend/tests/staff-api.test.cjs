@@ -57,7 +57,7 @@ test("isolated HTTP journey: login, three agents, action, retake, failure and lo
   const events = await (await staffApi(request(eventsPath, cookie), eventsPath)).json();
   for (const agent of ["vision", "compliance", "orchestrator"]) assert.ok(events.events.some(event => event.agent === agent));
   assert.ok(events.events.some(event => event.step === "lookup_rules"));
-  assert.equal((await staffApi(request("actions", cookie, { batch_id: result.batch_id, finding_id: finding.id, action: "on_hold", reason: "Wrong role" }), "actions")).status, 400);
+  assert.equal((await staffApi(request("actions", cookie, { batch_id: result.batch_id, finding_id: finding.id, action: "on_hold", reason: "Wrong role" }), "actions")).status, 403);
   const action = await staffApi(request("actions", cookie, { batch_id: result.batch_id, finding_id: finding.id, action: "fixed", reason: "Synthetic correction", actor_id: "supervisor" }), "actions");
   assert.equal(action.status, 200); assert.equal((await action.json()).actor_id, "test_staff");
   const saved = await (await staffApi(request(batchPath, cookie), batchPath)).json();
@@ -76,4 +76,47 @@ test("isolated HTTP journey: login, three agents, action, retake, failure and lo
   const logout = await staffApi(request("logout", cookie, {}), "logout");
   assert.equal(logout.status, 200); assert.match(logout.headers.get("set-cookie"), /Max-Age=0/);
   console.log("Verified real Next handlers + FastAPI + SQLAlchemy + three ADK agents/tools; scripted model, memory-only storage.");
+});
+async function signIn(username) {
+  const login = await staffApi(request("login", null, { username, password: "local-test-password" }), "login");
+  assert.equal(login.status, 200);
+  return login.headers.get("set-cookie").split(";")[0];
+}
+async function act(cookie, data) {
+  const response = await staffApi(request("actions", cookie, data), "actions");
+  return { status: response.status, body: await response.json() };
+}
+test("supervisor feed, hold, lift hold and close keep role checks", async () => {
+  const staff = await signIn("local_staff");
+  const supervisor = await signIn("local_supervisor");
+  const result = await (await staffApi(request("inspect", staff, photo()), "inspect")).json();
+  const batch = result.batch_id, batchPath = `batches/${batch}`;
+  const denied = await staffApi(request("supervisor/feed", staff), "supervisor/feed");
+  assert.equal(denied.status, 403); assert.match((await denied.json()).detail, /supervisor/i);
+  const feedResponse = await staffApi(request("supervisor/feed", supervisor), "supervisor/feed");
+  assert.equal(feedResponse.status, 200);
+  const feed = await feedResponse.json();
+  assert.ok(feed.safety_feed.some(item => item.batch_id === batch && item.status === "open"));
+  assert.ok(feed.batches.some(item => item.batch_id === batch));
+  assert.equal((await act(staff, { batch_id: batch, action: "on_hold", reason: "Staff try" })).status, 403);
+  assert.equal((await act(supervisor, { batch_id: batch, action: "hold", reason: "Unknown" })).status, 400);
+  assert.equal((await act(supervisor, { batch_id: batch, action: "on_hold", reason: "x" })).status, 400);
+  const hold = await act(supervisor, { batch_id: batch, action: "on_hold", reason: "Check the tray" });
+  assert.equal(hold.status, 200, JSON.stringify(hold.body)); assert.equal(hold.body.actor_id, "test_supervisor");
+  assert.equal((await (await staffApi(request(batchPath, staff), batchPath)).json()).status, "on_hold");
+  assert.equal((await act(staff, { batch_id: batch, action: "lift_hold", reason: "Staff try" })).status, 403);
+  assert.equal((await act(supervisor, { batch_id: batch, action: "lift_hold", reason: "Tray checked" })).status, 200);
+  assert.equal((await act(staff, { batch_id: batch, action: "close", reason: "Too early" })).status, 400);
+  assert.equal((await act(staff, { batch_id: batch, finding_id: result.findings[0].id, action: "dismissed", reason: "Synthetic false alarm" })).status, 200);
+  assert.equal((await act(staff, { batch_id: batch, action: "close", reason: "All findings handled" })).status, 200);
+  assert.equal((await (await staffApi(request(batchPath, supervisor), batchPath)).json()).status, "closed");
+});
+test("backend auth refusals map to clear statuses", async () => {
+  const { signSession } = require("../lib/session.ts");
+  const ghost = signSession({ actor_id: "deleted_user", name: "Ghost", username: "ghost", role: "supervisor" }, process.env.SESSION_SECRET);
+  assert.equal((await staffApi(request("supervisor/feed", `dapur_session=${ghost}`), "supervisor/feed")).status, 401);
+  const staff = await signIn("local_staff");
+  const previous = process.env.BACKEND_SHARED_SECRET; process.env.BACKEND_SHARED_SECRET = "wrong-synthetic-secret";
+  try { assert.equal((await staffApi(request("overview", staff), "overview")).status, 503); }
+  finally { process.env.BACKEND_SHARED_SECRET = previous; }
 });

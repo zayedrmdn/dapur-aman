@@ -49,6 +49,26 @@ async function jsonBody(request: Request) {
   }
 }
 
+async function unauthorized(response: Response) {
+  const payload = await response.json().catch(() => null);
+  const unknownActor = typeof payload?.detail === "string" && /actor/i.test(payload.detail);
+  if (unknownActor) return new RequestError(401, "Akun sesi ini tidak dikenali. Silakan masuk kembali.");
+  return new RequestError(503, "Backend menolak kunci server. Periksa BACKEND_SHARED_SECRET.");
+}
+
+function actionError(input: Record<string, unknown>) {
+  const findingActions = ["fixed", "dismissed"];
+  const batchActions = ["on_hold", "lift_hold", "close"];
+  if (!ID.test(String(input.batch_id ?? ""))) return "Batch tidak valid.";
+  const action = String(input.action);
+  if (![...findingActions, ...batchActions].includes(action)) return "Tindakan tidak dikenal.";
+  const hasFinding = input.finding_id != null;
+  if (findingActions.includes(action) && !hasFinding) return "Pilih temuan yang valid.";
+  if (hasFinding && !ID.test(String(input.finding_id))) return "Pilih temuan yang valid.";
+  if (typeof input.reason !== "string" || input.reason.trim().length < 3 || input.reason.length > 2000) return "Tulis alasan (minimal 3 karakter).";
+  return null;
+}
+
 async function upstream(path: string, actorId?: string, data?: FormData | object) {
   const base = process.env.BACKEND_URL;
   const secret = process.env.BACKEND_SHARED_SECRET;
@@ -67,9 +87,8 @@ async function upstream(path: string, actorId?: string, data?: FormData | object
       body: data ? (multipart ? data : JSON.stringify(data)) : undefined,
       cache: "no-store", redirect: "error", signal: AbortSignal.timeout(150_000),
     });
-    if (response.status === 401 || response.status === 403) {
-      throw new RequestError(502, "Backend menolak akses. Periksa konfigurasi server atau akun.");
-    }
+    if (response.status === 401) throw await unauthorized(response);
+    if (response.status === 403) throw new RequestError(403, "Akun Anda tidak berwenang untuk tindakan ini. Hanya supervisor yang dapat melakukannya.");
     const payload = await response.json();
     if (response.status >= 500 && !(response.status === 502 && payload?.detail?.run_id)) {
       throw new RequestError(502, "Backend belum dapat menyelesaikan permintaan. Muat ulang data tersimpan sebelum mencoba lagi.");
@@ -137,15 +156,15 @@ export async function staffApi(request: NextRequest, path: string) {
     let result;
     if (request.method === "GET") {
       if (path === "overview") result = await upstream("/api/overview", session.actor_id);
+      else if (path === "supervisor/feed") result = await upstream("/api/supervisor/feed", session.actor_id);
       else if (/^batches\/[a-zA-Z0-9_-]{1,64}$/.test(path)) result = await upstream(`/api/${path}`, session.actor_id);
       else if (/^runs\/[a-zA-Z0-9_-]{1,64}\/events$/.test(path)) result = await upstream(`/api/${path}`, session.actor_id);
       else throw new RequestError(404, "Halaman data tidak ditemukan.");
     } else if (path === "actions" && request.method === "POST") {
       const input = await jsonBody(request);
-      if (!ID.test(input.batch_id ?? "") || !ID.test(input.finding_id ?? "") || !["fixed", "dismissed"].includes(input.action) || typeof input.reason !== "string" || input.reason.trim().length < 3 || input.reason.length > 2000) {
-        throw new RequestError(400, "Pilih temuan dan tulis alasan (minimal 3 karakter).");
-      }
-      result = await upstream("/api/actions", session.actor_id, { batch_id: input.batch_id, finding_id: input.finding_id, action: input.action, reason: input.reason.trim() });
+      const invalid = actionError(input);
+      if (invalid) throw new RequestError(400, invalid);
+      result = await upstream("/api/actions", session.actor_id, { batch_id: input.batch_id, finding_id: input.finding_id ?? null, action: input.action, reason: input.reason.trim() });
     } else if (path === "inspect" && request.method === "POST") {
       if (activeInspections.has(session.actor_id)) throw new RequestError(429, "Inspeksi Anda masih berjalan. Tunggu hasilnya.");
       const bytes = await body(request, MAX_PHOTO + 65_536);
