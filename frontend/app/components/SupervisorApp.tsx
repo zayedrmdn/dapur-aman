@@ -14,6 +14,9 @@ export default function SupervisorApp({ review = false }: { review?: boolean }) 
     const [fixCount, setFixCount] = useState(0)
     const [dismissCount, setDismissCount] = useState(0)
     const [openCount, setOpenCount] = useState(0)
+
+    const [timeToFix, setTimeToFix] = useState("0-20")
+
     async function logout() {
         try { await api("logout", {}); router.replace("/login"); }
         catch (error) { setError(error instanceof Error ? error.message : "Belum dapat keluar."); }
@@ -26,7 +29,13 @@ export default function SupervisorApp({ review = false }: { review?: boolean }) 
         >
         <main className="mx-auto grid max-w-[1440px] grid-cols-[minmax(0,1fr)] gap-5 p-4 [&>*]:min-w-0 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:p-6">
             <section className="rounded-2xl border border-rule bg-paper p-4 md:order-2 md:p-5"></section>
-            <section className="grid content-start gap-5 md:order-1"></section>
+            <section className="grid content-start gap-5 md:order-1">
+                <div className="rounded-2xl border border-rule bg-paper p-4 md:p-5">
+                    <h2 className="flex items-baseline justify-between text-[15px] font-extrabold">Safety feed <small className="text-xs font-normal text-ink2">
+                        bar = time to fix, {timeToFix} min</small>
+                    </h2>
+                </div>
+            </section>
         </main>
     </SupervisorShell>
 }
