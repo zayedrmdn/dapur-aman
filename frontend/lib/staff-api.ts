@@ -191,7 +191,8 @@ export async function staffApi(request: NextRequest, path: string) {
     let result;
     if (request.method === "GET") {
       if (path === "overview") result = await upstream("/api/overview", session.actor_id);
-      else if (path === "supervisor/feed") result = await upstream("/api/supervisor/feed", session.actor_id);
+      else if (path === "schools") result = await upstream("/api/schools", session.actor_id);
+      else if (path === "supervisor/feed" || path === "supervisor/dashboard") result = await upstream(`/api/${path}`, session.actor_id);
       else if (/^batches\/[a-zA-Z0-9_-]{1,64}$/.test(path)) result = await upstream(`/api/${path}`, session.actor_id);
       else if (/^runs\/[a-zA-Z0-9_-]{1,64}\/events$/.test(path)) result = await upstream(`/api/${path}`, session.actor_id);
       else throw new RequestError(404, "Halaman data tidak ditemukan.");
@@ -200,6 +201,8 @@ export async function staffApi(request: NextRequest, path: string) {
       const invalid = actionError(input);
       if (invalid) throw new RequestError(400, invalid);
       result = await upstream("/api/actions", session.actor_id, { batch_id: input.batch_id, finding_id: input.finding_id ?? null, action: input.action, reason: input.reason.trim() });
+    } else if (/^notifications\/dispatch-report\/[a-zA-Z0-9_-]{1,64}$/.test(path) && request.method === "POST") {
+      result = await upstream(`/api/${path}`, session.actor_id, {});
     } else if (path === "inspect" && request.method === "POST") {
       if (activeInspections.has(session.actor_id)) throw new RequestError(429, "Inspeksi Anda masih berjalan. Tunggu hasilnya.");
       const bytes = await body(request, MAX_PHOTO + 65_536);
@@ -215,6 +218,8 @@ export async function staffApi(request: NextRequest, path: string) {
       const upload = new FormData();
       upload.set("photo", photo); upload.set("table_name", table); upload.set("menu_items", menu);
       if (batch) upload.set("batch_id", batch);
+      const school = String(form.get("school_id") ?? "");
+      if (school) upload.set("school_id", school);
       upload.set("is_retake", form.get("is_retake") === "true" ? "true" : "false");
       rateLimit(`inspect:${session.actor_id}`, 10);
       inspecting = session.actor_id; activeInspections.add(inspecting);

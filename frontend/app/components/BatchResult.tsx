@@ -45,6 +45,41 @@ export default function BatchResult({ batch, refresh }: { batch: Batch; refresh:
   const run = runs.find(item => item.id === selectedRun) ?? runs[0];
   const runId = run?.id;
   const [trace, setTrace] = useState<{ runId: string; events: Event[]; error?: string } | null>(null);
+  const [sendingDispatch, setSendingDispatch] = useState(false);
+  const [dispatchNotice, setDispatchNotice] = useState("");
+  const [closingBatch, setClosingBatch] = useState(false);
+  const [closeError, setCloseError] = useState("");
+
+  async function handleCloseBatch() {
+    setClosingBatch(true);
+    setCloseError("");
+    try {
+      await api("actions", {
+        batch_id: batch.batch_id,
+        action: "close",
+        reason: "Semua temuan terverifikasi telah diperbaiki dan memenuhi standar kelaikan MBG.",
+      });
+      await refresh();
+    } catch (err) {
+      setCloseError(err instanceof Error ? err.message : "Gagal menutup batch.");
+    } finally {
+      setClosingBatch(false);
+    }
+  }
+
+  async function sendDispatchReport() {
+    setSendingDispatch(true);
+    setDispatchNotice("");
+    try {
+      await api(`notifications/dispatch-report/${encodeURIComponent(batch.batch_id)}`, {});
+      setDispatchNotice("Surat Kelaikan terkirim ke Telegram Sekolah!");
+    } catch (err) {
+      setDispatchNotice(err instanceof Error ? err.message : "Gagal mengirim ke Telegram.");
+    } finally {
+      setSendingDispatch(false);
+    }
+  }
+
   useEffect(() => {
     if (!runId) return;
     let active = true;
@@ -54,10 +89,31 @@ export default function BatchResult({ batch, refresh }: { batch: Batch; refresh:
     return () => { active = false; };
   }, [runId]);
   const findings = run ? batch.findings.filter(finding => finding.run_id === run.id) : [];
+  const openFindings = batch.findings.filter(finding => finding.state === "open");
   return <section className="border-t border-rule pb-2">
     <div className="flex flex-col gap-3 p-4">
       <h2 className="text-lg font-extrabold">{batch.table_name}</h2>
       <p className="break-all text-xs text-ink2">Batch {batch.batch_id} - {batch.status === "on_hold" ? "Ditahan supervisor" : batch.status === "closed" ? "Ditutup oleh manusia" : "Dalam peninjauan"}</p>
+      {batch.status === "closed" && <div className="rounded border border-brand bg-mint p-3 text-sm text-brand-dark">
+        <p className="font-bold">✅ Surat Kelaikan Distribusi MBG Resmi</p>
+        <p className="mt-1 text-xs text-ink2">Batch ini terverifikasi 100% lolos audit AI &amp; disetujui supervisor. Siap didistribusikan ke sekolah.</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button size="small" variant="contained" disabled={sendingDispatch} onClick={sendDispatchReport} className="bg-brand text-xs text-white">
+            {sendingDispatch ? "Mengirim..." : "Kirim Ulang Surat Kelaikan ke Telegram Sekolah"}
+          </Button>
+          {dispatchNotice && <span className="text-xs font-semibold text-brand">{dispatchNotice}</span>}
+        </div>
+      </div>}
+      {batch.status !== "closed" && openFindings.length === 0 && <div className="rounded border-2 border-brand bg-mint p-3 text-sm text-brand-dark">
+        <p className="font-bold">✨ Semua temuan telah diperbaiki &amp; terverifikasi!</p>
+        <p className="mt-1 text-xs text-ink2">Baki sudah bersih dari masalah. Tutup batch ini untuk memfinalisasi dan menerbitkan Surat Kelaikan Pengiriman ke Telegram Sekolah.</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button size="small" variant="contained" disabled={closingBatch} onClick={handleCloseBatch} className="bg-brand text-xs font-bold text-white">
+            {closingBatch ? "Memproses..." : "Tutup Batch & Terbitkan Surat Kelaikan ke Sekolah"}
+          </Button>
+          {closeError && <span className="text-xs font-semibold text-safety">{closeError}</span>}
+        </div>
+      </div>}
       {runs.length > 0 && <label className="text-sm font-medium">Foto dan inspeksi<select aria-label="Foto dan inspeksi" value={run.id} onChange={event => setSelectedRun(event.target.value)} className={`mt-1 ${inputClass}`}>{runs.map((item, index) => <option key={item.id} value={item.id}>{index === 0 ? "Terbaru" : "Sebelumnya"}: {time(item.created_at)}</option>)}</select></label>}
       {run && (run.provider === "fixture" || run.provider.startsWith("test")) && <p className="border-l-4 border-quality bg-quality-bg p-3 text-sm text-quality-ink">SIMULASI / PENGUJIAN TERISOLASI - {run.provider}. Hasil ini bukan inspeksi model langsung.</p>}
       {!run ? <ErrorMessage>Belum ada inspeksi tersimpan. Unggah foto untuk mulai.</ErrorMessage> : run.state !== "completed" ? <ErrorMessage>Inspeksi {run.state === "failed" ? "gagal" : "belum selesai"}. {run.error?.message ?? "Hasil tidak dapat digunakan. Coba lagi atau ambil foto ulang."}</ErrorMessage> : <p role="status" className="border-l-4 border-quality bg-quality-bg p-3 text-sm text-quality-ink">{run.outcome === "retake_required" ? "Foto perlu diulang; bukti belum cukup." : run.outcome === "clean" ? "Tidak ada masalah terlihat pada hasil ini. Tetap lakukan pemeriksaan manusia." : "Hasil memerlukan peninjauan dan tindakan manusia."}</p>}
