@@ -38,4 +38,13 @@ STORAGE_ACCESS_KEY_ID = os.getenv("STORAGE_ACCESS_KEY_ID", "")
 STORAGE_SECRET_ACCESS_KEY = os.getenv("STORAGE_SECRET_ACCESS_KEY", "")
 
 # Server-to-server shared secret
-BACKEND_SHARED_SECRET = os.getenv("BACKEND_SHARED_SECRET", "Wg7hs2QnIvklqwcalp_kIZKUkh-RfJ-4MyxrQ0LV6-s")
+BACKEND_SHARED_SECRET = os.getenv("BACKEND_SHARED_SECRET", "")
+
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+SEED_STAFF_PASSWORD = os.getenv("SEED_STAFF_PASSWORD", "")
+SEED_SUPERVISOR_PASSWORD = os.getenv("SEED_SUPERVISOR_PASSWORD", "")

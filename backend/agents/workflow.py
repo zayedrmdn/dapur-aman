@@ -224,6 +224,9 @@ class InspectionRun:
             ],
             "image_quality_issues": self.vision_result.image_quality_issues,
             "missing_evidence": self.vision_result.missing_evidence,
+            "next_step": (
+                "Call check_compliance now." if observations else "Do not call check_compliance."
+            ),
         }
 
     async def run_compliance(self) -> dict:
@@ -232,7 +235,7 @@ class InspectionRun:
         compliance = build_compliance_agent(self.model)
         self.compliance_result = await run_agent(
             compliance,
-            text_message("Assess the observations in the session state."),
+            text_message(self.compliance_briefing()),
             self.compliance_state(),
             self.recorder,
             ComplianceResult,
@@ -247,6 +250,20 @@ class InspectionRun:
             ],
         }
 
+    def compliance_briefing(self) -> str:
+        observations = [
+            {
+                "observation_index": index,
+                "concern_type": observation.concern_type,
+                "explanation": observation.explanation,
+            }
+            for index, observation in enumerate(self.vision_result.observations)
+        ]
+        return (
+            f"Assess all {len(observations)} observation(s), one assessment each.\n"
+            + json.dumps({"observations": observations})
+        )
+
     def orchestrator_briefing(self) -> str:
         briefing = {
             "menu": self.input.menu.name,
@@ -259,6 +276,7 @@ class InspectionRun:
     def vision_message(self) -> types.Content:
         context = {
             "menu": self.input.menu.name,
+            "menu_items": self.input.menu.items,
             "known_concern_types": known_concern_types(),
             "prior_concern": dump_or_none(self.input.prior_concern),
         }

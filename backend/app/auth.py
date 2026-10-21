@@ -6,6 +6,8 @@ Enforces:
 - Role verification (kitchen_staff vs supervisor)
 """
 
+import hmac
+
 import bcrypt
 from fastapi import Header, HTTPException, Request, Depends, status
 from sqlalchemy.orm import Session
@@ -34,9 +36,14 @@ def verify_shared_secret(
 ) -> None:
     """Verify that the incoming request contains the correct server-to-server shared secret."""
     if not BACKEND_SHARED_SECRET:
-        return
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="BACKEND_SHARED_SECRET belum dikonfigurasi di server.",
+        )
 
-    if not x_shared_secret or x_shared_secret != BACKEND_SHARED_SECRET:
+    if not x_shared_secret or not hmac.compare_digest(
+        x_shared_secret.encode("utf-8"), BACKEND_SHARED_SECRET.encode("utf-8")
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Header 'X-Shared-Secret' hilang atau tidak valid.",
@@ -51,7 +58,13 @@ def get_current_actor(
 
     Accepts ID (e.g. 'usr_staff_01', 'usr_staff1') or username ('staff1').
     """
-    actor_id = x_actor_id or "usr_staff_01"
+    if not x_actor_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Header 'X-Actor-Id' wajib diisi.",
+        )
+
+    actor_id = x_actor_id
     user = (
         db.query(User)
         .filter((User.id == actor_id) | (User.username == actor_id))

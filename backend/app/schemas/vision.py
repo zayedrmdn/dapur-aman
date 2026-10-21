@@ -19,6 +19,9 @@ class FindingCardSchema(BaseModel):
     box: EvidenceBoxSchema | None = None
     icon_type: str = "safety"  # "safety", "quality", "warning"
     state: Literal["open", "fixed", "dismissed"] = "open"
+    rule_reference: str | None = None
+    evidence_gap: str | None = None
+    suggested_action: str | None = None
 
 
 class FoodComponentSchema(BaseModel):
@@ -43,3 +46,5 @@ class InspectionResponseSchema(BaseModel):
     findings: list[FindingCardSchema] = []  # for detail cards in UI-2
     image_quality_issues: list[str] = []
     missing_evidence: list[str] = []
+    uncertainty: list[str] = []
+    next_action: str | None = None

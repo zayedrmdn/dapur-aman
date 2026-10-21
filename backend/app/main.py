@@ -23,17 +23,12 @@ from fastapi import (
     Form,
     HTTPException,
     Depends,
-    Header,
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app.config import (
-    AI_PROVIDER,
-    AI_MODEL,
-    BACKEND_SHARED_SECRET,
-)
+from app.config import CORS_ALLOWED_ORIGINS
 from app.database import engine, Base, SessionLocal, get_db
 from app.models import (
     User,
@@ -68,7 +63,12 @@ from app.schemas import (
     BatchOverviewSchema,
     PackingPhotoRowSchema,
 )
-from agents.vision.agent import get_vision_agent
+from agents.compliance.rules import RULE_TABLE_VERSION
+from agents.contract import Finding as ContractFinding
+from agents.contract import InspectionInput, Menu, RunState
+from agents.contract import Photo as ContractPhoto
+from agents.workflow import run_inspection
+from app.inspection import InvalidPhotoError, build_response, to_jpeg
 
 logger = logging.getLogger("dapur_aman.api")
 logging.basicConfig(level=logging.INFO)
@@ -97,8 +97,8 @@ app = FastAPI(
 # CORS setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ALLOWED_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -146,7 +146,7 @@ def login(
     "/api/vision/inspect",
     response_model=InspectionResponseSchema,
     tags=["Vision Inspection"],
-    summary="Inspeksi foto makanan, simpan ke Neon DB & S3, dan hasilkan respons UI",
+    summary="Inspeksi foto makanan lewat tiga agen (Orchestrator, Vision, Compliance), simpan ke Neon DB & S3",
 )
 @app.post(
     "/api/inspections/upload-and-run",
@@ -162,29 +162,17 @@ async def inspect_food_photo(
         description="Daftar komponen menu hari ini, dipisahkan koma",
     ),
     batch_id: str | None = Form(None, description="Opsional: ID batch untuk mengelompokkan beberapa meja/baki"),
-    x_actor_id: str | None = Header(None, alias="X-Actor-Id"),
-    x_shared_secret: str | None = Header(None, alias="X-Shared-Secret"),
+    _: None = Depends(verify_shared_secret),
     db: Session = Depends(get_db),
 ) -> InspectionResponseSchema:
     """Endpoint utama inspeksi foto baki makanan:
 
-    1. Membaca dan memvalidasi file foto (maks 4 MB)
+    1. Membaca dan memvalidasi file foto (maks 4 MB), dikonversi ke JPEG
     2. Mengunggah foto ke Neon Object Storage (private S3 bucket)
-    3. Membuat record Batch, Photo, dan Run di Neon Postgres
-    4. Menjalankan VisionAgent (Gemini 3.8 Flash via Vertex AI)
-    5. Menyimpan temuan (findings) dan bounding box ke database
-    6. Menghasilkan signed URL 10 menit untuk akses foto di frontend
-    7. Mengembalikan data lengkap sesuai format tampilan UI-1 dan UI-2
+    3. Menjalankan run_inspection: Orchestrator memanggil Vision lalu Compliance (Google ADK)
+    4. Menyimpan Run, temuan, dan activity event asli ke Neon Postgres
+    5. Mengembalikan data sesuai format tampilan UI-1 dan UI-2
     """
-    # Verifikasi shared secret jika disuplai atau jika BACKEND_SHARED_SECRET aktif
-    if x_shared_secret is not None:
-        if x_shared_secret != BACKEND_SHARED_SECRET:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Header 'X-Shared-Secret' tidak valid.",
-            )
-
-    # 1. Validasi foto
     photo_bytes = await photo.read()
     if not photo_bytes:
         raise HTTPException(
@@ -198,124 +186,169 @@ async def inspect_food_photo(
             detail="Ukuran foto melebihi batas maksimal 4 MB.",
         )
 
-    content_type = photo.content_type or "image/jpeg"
-    clean_table_name = table_name.strip() or "Table 1"
+    try:
+        jpeg_bytes = to_jpeg(photo_bytes)
+    except InvalidPhotoError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File bukan gambar yang dapat dibaca.",
+        )
 
-    # 2. Generate persistent database IDs
+    clean_table_name = table_name.strip() or "Table 1"
     unique_suffix = uuid.uuid4().hex[:10]
     active_batch_id = batch_id.strip() if batch_id and batch_id.strip() else f"batch_{unique_suffix}"
     photo_id = f"pho_{unique_suffix}"
     run_id = f"run_{unique_suffix}"
-
-    # 3. Upload photo to Neon Object Storage
     storage_key = f"photos/{active_batch_id}/{photo_id}.jpg"
+
     try:
-        upload_photo_bytes(storage_key, photo_bytes, content_type)
+        upload_photo_bytes(storage_key, jpeg_bytes, "image/jpeg")
         presigned_photo_url = generate_presigned_url(storage_key, expires_in=600)
     except Exception as e:
-        logger.error("Gagal mengunggah foto ke Neon S3: %s", e)
-        presigned_photo_url = f"https://storage.neon.tech/{storage_key}"
-
-    # 4. Parse menu items
-    items_list = [item.strip() for item in menu_items.split(",") if item.strip()]
-
-    # 5. Jalankan analisis Vision Agent
-    try:
-        agent = get_vision_agent()
-        result = await agent.inspect(
-            photo_bytes=photo_bytes,
-            table_name=clean_table_name,
-            menu_items=items_list,
-            content_type=content_type,
-        )
-    except Exception as e:
-        logger.exception("Vision Agent error: %s", e)
+        logger.error("Gagal mengunggah foto ke Neon S3: %s", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Vision Agent gagal menganalisis foto: {e}",
+            detail="Foto gagal disimpan, inspeksi tidak dijalankan. Coba lagi.",
         )
 
-    # 6. Persist to Neon Postgres
+    items_list = [item.strip() for item in menu_items.split(",") if item.strip()]
+    inspection_input = InspectionInput(
+        photo=ContractPhoto(content=jpeg_bytes),
+        menu=Menu(menu_id="MBG-01", name=", ".join(items_list) or "MBG menu", items=items_list),
+        batch_history=batch_history(db, active_batch_id),
+        rule_table_version=RULE_TABLE_VERSION,
+    )
+    outcome = await run_inspection(inspection_input)
+    finding_ids = [f"fnd_{unique_suffix}_{index + 1}" for index in range(len(outcome.findings))]
+    response = None
+    if outcome.state == RunState.COMPLETED:
+        response = build_response(
+            outcome,
+            clean_table_name,
+            datetime.now(timezone.utc).strftime("%H:%M"),
+            finding_ids,
+        )
+
     try:
         existing_batch = db.query(Batch).filter(Batch.id == active_batch_id).first()
         if not existing_batch:
-            new_batch = Batch(
-                id=active_batch_id,
-                menu_id="MBG-01",
-                menu_name=clean_table_name,
-                table_name=clean_table_name,
-                status="in_review",
+            db.add(
+                Batch(
+                    id=active_batch_id,
+                    menu_id="MBG-01",
+                    menu_name=clean_table_name,
+                    table_name=clean_table_name,
+                    status="in_review",
+                )
             )
-            db.add(new_batch)
 
-        new_photo = Photo(
-            id=photo_id,
-            batch_id=active_batch_id,
-            object_key=storage_key,
-            media_type=content_type,
-            file_size_bytes=len(photo_bytes),
-        )
-        db.add(new_photo)
-
-        new_run = Run(
-            id=run_id,
-            batch_id=active_batch_id,
-            photo_id=photo_id,
-            state="completed",
-            outcome=result.status,
-            headline=result.headline,
-            summary_label=result.summary_label,
-            primary_action_label=result.primary_action_label,
-            next_action=result.primary_action_label,
-            provider=AI_PROVIDER,
-            model=AI_MODEL,
-            raw_observation=result.model_dump(),
-        )
-        db.add(new_run)
-
-        # Simpan setiap finding
-        for idx, finding in enumerate(result.findings):
-            finding_id = f"fnd_{unique_suffix}_{idx + 1}"
-            finding.id = finding_id  # sync ID with model response
-            new_finding = Finding(
-                id=finding_id,
-                run_id=run_id,
+        db.add(
+            Photo(
+                id=photo_id,
                 batch_id=active_batch_id,
-                level=finding.level,
-                concern_type=finding.title,
-                box_json=finding.box.model_dump() if finding.box else None,
-                explanation=finding.detail,
-                suggested_action="Periksa dan lakukan tindakan perbaikan sebelum makanan disajikan.",
-                status="open",
+                object_key=storage_key,
+                media_type="image/jpeg",
+                file_size_bytes=len(jpeg_bytes),
             )
-            db.add(new_finding)
-
-        # Simpan activity trace
-        new_event = ActivityEvent(
-            id=f"evt_{unique_suffix}_1",
-            run_id=run_id,
-            sequence=1,
-            agent="VisionAgent",
-            step="vision_inspection",
-            kind="agent_execution",
-            status="completed",
-            summary=f"Vision Agent menganalisis baki {clean_table_name}: {len(result.findings)} temuan diidentifikasi.",
-            references_json={"components_checked": len(result.detected_components)},
         )
-        db.add(new_event)
+        db.add(
+            Run(
+                id=run_id,
+                batch_id=active_batch_id,
+                photo_id=photo_id,
+                state=outcome.state.value,
+                outcome=response.status if response else None,
+                headline=response.headline if response else None,
+                summary_label=response.summary_label if response else None,
+                primary_action_label=response.primary_action_label if response else None,
+                next_action=outcome.next_action,
+                uncertainty_json=outcome.uncertainty,
+                error_json=outcome.error.model_dump(mode="json") if outcome.error else None,
+                provider=outcome.provider,
+                model=outcome.model,
+                raw_observation=outcome.model_dump(mode="json"),
+            )
+        )
+        for finding, finding_id in zip(outcome.findings, finding_ids, strict=True):
+            db.add(
+                Finding(
+                    id=finding_id,
+                    run_id=run_id,
+                    batch_id=active_batch_id,
+                    level=finding.level,
+                    concern_type=finding.concern_type,
+                    box_json=finding.box.model_dump() if finding.box else None,
+                    explanation=finding.explanation,
+                    rule_reference=finding.rule_reference,
+                    evidence_gap=finding.evidence_gap,
+                    suggested_action=finding.suggested_action,
+                    status="open",
+                )
+            )
+        for event in outcome.events:
+            db.add(
+                ActivityEvent(
+                    id=f"evt_{unique_suffix}_{event.sequence}",
+                    run_id=run_id,
+                    sequence=event.sequence,
+                    agent=event.agent,
+                    step=event.step,
+                    parent_step=event.parent_step,
+                    kind=event.kind,
+                    status=event.status,
+                    summary=event.summary,
+                    references_json=event.references,
+                    uncertainty=event.uncertainty,
+                    error=event.error,
+                    timestamp=event.timestamp,
+                )
+            )
         db.commit()
-
     except Exception as e:
         db.rollback()
-        logger.exception("Gagal menyimpan hasil inspeksi ke Neon DB: %s", e)
+        logger.error("Gagal menyimpan hasil inspeksi ke Neon DB: %s", type(e).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Hasil inspeksi gagal disimpan. Coba lagi.",
+        )
 
-    # 7. Enrich response with IDs and signed photo URL
-    result.batch_id = active_batch_id
-    result.run_id = run_id
-    result.photo_id = photo_id
-    result.photo_url = presigned_photo_url
+    if response is None:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "code": outcome.error.code,
+                "message": outcome.error.message,
+                "retryable": outcome.error.retryable,
+                "run_id": run_id,
+            },
+        )
 
-    return result
+    response.batch_id = active_batch_id
+    response.run_id = run_id
+    response.photo_id = photo_id
+    response.photo_url = presigned_photo_url
+    return response
+
+
+def batch_history(db: Session, batch_id: str) -> list[ContractFinding]:
+    """Earlier open findings of this batch, for the Compliance agent's batch check."""
+    rows = (
+        db.query(Finding)
+        .filter(Finding.batch_id == batch_id, Finding.status == "open")
+        .all()
+    )
+    return [
+        ContractFinding(
+            level=row.level if row.level in ("safety", "quality") else "safety",
+            concern_type=row.concern_type,
+            box=None,
+            explanation=row.explanation,
+            rule_reference=row.rule_reference,
+            evidence_gap=row.evidence_gap,
+            suggested_action=row.suggested_action,
+        )
+        for row in rows
+    ]
 
 
 @app.get(
@@ -533,9 +566,9 @@ def get_batch_detail(
 )
 def record_human_action(
     payload: ActionRequest,
+    _: None = Depends(verify_shared_secret),
     actor: User = Depends(get_current_actor),
     db: Session = Depends(get_db),
-    _: None = Depends(verify_shared_secret),
 ) -> ActionResponse:
     """Mencatat tindakan manusia terhadap temuan atau status batch:
 

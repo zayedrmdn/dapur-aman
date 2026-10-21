@@ -113,6 +113,15 @@ def test_visible_foreign_object_needs_review():
     ]
     assert sent_images == [PHOTO_BYTES]
 
+    compliance_request = next(
+        request
+        for request in model.requests
+        if "You are the Compliance/Research agent" in request.config.system_instruction
+    )
+    compliance_text = compliance_request.contents[0].parts[0].text
+    assert "Assess all 1 observation(s)" in compliance_text
+    assert "foreign_object" in compliance_text
+
 
 def test_rule_not_returned_by_a_tool_fails_the_run():
     model = ScriptedLlm(
