@@ -114,7 +114,7 @@ async def main():
         print("=" * 60)
 
     except Exception as err:
-        print(f"\n❌ Error saat inspeksi: {err}")
+        print(f"\n[ERROR] saat inspeksi: {err}")
         sys.exit(1)
 
 
