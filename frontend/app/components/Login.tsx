@@ -12,7 +12,13 @@ export default function Login() {
   async function login(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError("");
     const form = new FormData(event.currentTarget);
-    try { await api("login", { username: form.get("username"), password: form.get("password") }); router.replace("/staff"); }
+    try { await api("login", { username: form.get("username"), password: form.get("password") });
+      if (form.get("username") == "staff1") { /* TO DO : CHECK ROLE */
+        router.replace("/staff");
+      } else if (form.get("username") == "supervisor1") {
+        router.replace("/supervisor");
+      }
+    }
     catch (error) { setError(error instanceof Error ? error.message : "Login belum berhasil."); }
     finally { setBusy(false); }
   }
