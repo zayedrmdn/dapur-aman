@@ -16,7 +16,7 @@ export default function Home() {
                         <a className="MuiButtonBase-root MuiButton-root MuiButton-contained MuiButton-sizeLarge MuiButton-colorPrimary MuiButton-disableElevation h-13 bg-white px-6 text-base text-brand-dark mui-1tmyjs1" href="staff-review.html">
                             See a checked photo
                             <span className="MuiButton-icon MuiButton-endIcon mui-z06ad1">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <path d="M5 12h14M13 6l6 6-6 6"></path>
                             </svg>
                             </span>
@@ -33,7 +33,7 @@ export default function Home() {
             <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <li className="flex items-center gap-3">
                     <span className="grid shrink-0 place-items-center rounded-full bg-safety text-white" style={{width:"52px", height:"52px"}}>
-                        <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                        <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                             <path d="M4 13h16a8 8 0 0 1-16 0z" fill="currentColor" stroke="none"></path>
                             <path d="M8 9c1-1.5-1-2.5 0-4M12 9c1-1.5-1-2.5 0-4M16 9c1-1.5-1-2.5 0-4"></path>
                         </svg>
@@ -56,7 +56,7 @@ export default function Home() {
                 </li>
                 <li className="flex items-center gap-3">
                     <span className="grid shrink-0 place-items-center rounded-full bg-safety text-white" style={{width:"52px", height:"52px"}}>
-                        <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+                        <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
                             <path d="M5 18c3-9 6 3 9-6s4-5 5-7"></path>
                         </svg>
                     </span>
@@ -67,7 +67,7 @@ export default function Home() {
                 </li>
                 <li className="flex items-center gap-3">
                     <span className="grid shrink-0 place-items-center rounded-full bg-quality text-quality-ink" style={{width:"52px", height:"52px"}}>
-                        <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-dasharray="3 3">
+                        <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.4" strokeDasharray="3 3">
                             <rect x="4" y="5" width="16" height="14" rx="3"></rect>
                         </svg>
                     </span>
