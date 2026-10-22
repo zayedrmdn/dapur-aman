@@ -7,6 +7,7 @@ import { api, ApiError, type Batch, type Overview } from "@/lib/contracts";
 import StaffShell, { ErrorMessage } from "./StaffShell";
 import UploadForm from "./UploadForm";
 import BatchResult from "./BatchResult";
+import { backendLabel } from "@/lib/labels";
 
 export default function StaffApp({ review = false }: { review?: boolean }) {
   const router = useRouter();
@@ -44,13 +45,13 @@ export default function StaffApp({ review = false }: { review?: boolean }) {
     {!user && !error && <p role="status" className="p-4">Memeriksa sesi...</p>}
     {user && !review && <>
       <section className="p-4"><h2 className="text-lg font-extrabold">Batch tersimpan</h2><p className="mt-1 text-sm text-ink2">Pilih batch untuk meninjau foto, mencatat tindakan, atau mengambil foto ulang.</p>
-        {!overview ? <p role="status" className="mt-4">Memuat batch...</p> : !overview.packing_photos.length ? <p className="mt-4 text-sm">Belum ada batch. Foto pertama akan membuat batch baru.</p> : <ul className="mt-3 divide-y divide-rule">{overview.packing_photos.map(item => <li key={item.batch_id}><Link className="block py-4 hover:bg-mint" href={`/staff-review?batch=${encodeURIComponent(item.batch_id)}`}><b className="block">{item.table_name}</b><span className="mt-1 block text-sm text-ink2">{item.summary_label}</span><span className="mt-1 block break-all text-xs text-ink2">{item.batch_id}</span></Link></li>)}</ul>}
+        {!overview ? <p role="status" className="mt-4">Memuat batch...</p> : !overview.packing_photos.length ? <p className="mt-4 text-sm">Belum ada batch. Foto pertama akan membuat batch baru.</p> : <ul className="mt-3 divide-y divide-rule">{overview.packing_photos.map(item => <li key={item.batch_id}><Link className="block py-4 hover:bg-mint" href={`/staff-review?batch=${encodeURIComponent(item.batch_id)}`}><b className="block">{item.table_name}</b><span className="mt-1 block text-sm text-ink2">{backendLabel(item.summary_label)}</span><span className="mt-1 block break-all text-xs text-ink2">{item.batch_id}</span></Link></li>)}</ul>}
         <Button onClick={() => { void load(); }} variant="outlined" className="mt-4">Muat ulang daftar batch</Button>
       </section>
       <UploadForm done={uploaded} />
     </>}
     {user && review && (!batchId ? <div className="p-4"><p>Pilih batch terlebih dahulu.</p><Button component={Link} href="/staff">Lihat daftar batch</Button></div> : !batch || batch.batch_id !== batchId ? <p role="status" className="p-4">Memuat hasil tersimpan...</p> : <>
-      <BatchResult key={`${batch.batch_id}:${batch.runs.length}`} batch={batch} refresh={load} />
+      <BatchResult key={`${batch.batch_id}:${batch.runs.length}`} batch={batch} refresh={load} isSupervisor={user.role === "supervisor"} />
       {batch.status !== "closed" && <UploadForm key={batchId} batchId={batchId} retake done={uploaded} />}
     </>)}
   </StaffShell>;

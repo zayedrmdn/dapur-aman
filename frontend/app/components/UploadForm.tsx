@@ -47,9 +47,9 @@ export default function UploadForm({ batchId, retake = false, done }: { batchId?
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Sekolah Sasaran Distribusi MBG (Pelanggan)
             <select name="school_id" defaultValue="sch_01" className={inputClass}>
-              <option value="sch_01">🏫 SDN 01 Merdeka Bandung (Alokasi: 450 Baki Siswa)</option>
-              <option value="sch_02">🏫 SMPN 3 Cibeureum (Alokasi: 520 Baki Siswa)</option>
-              <option value="sch_03">🏫 SDN 05 Sukajadi (Alokasi: 380 Baki Siswa)</option>
+              <option value="sch_01">SDN 01 Merdeka Bandung (450 baki)</option>
+              <option value="sch_02">SMPN 3 Cibeureum (520 baki)</option>
+              <option value="sch_03">SDN 05 Sukajadi (380 baki)</option>
             </select>
           </label>
         )}
@@ -65,7 +65,7 @@ export default function UploadForm({ batchId, retake = false, done }: { batchId?
       </fieldset>
       <p className="text-xs text-ink2">Foto dikonversi ke JPEG, sisi panjang hingga 1600 piksel. Gunakan foto yang jelas sebelum tutup dipasang.</p>
       {error && <ErrorMessage>{error}</ErrorMessage>}
-      {busy && <p role="status" className="bg-mint p-3 text-sm">Foto sedang diproses oleh Orchestrator, Vision, dan Compliance. Tunggu hasil tersimpan; jangan kirim ulang.</p>}
+      {busy && <p role="status" className="bg-mint p-3 text-sm">Foto sedang diproses oleh agen Orkestrator, Vision, dan Kepatuhan. Tunggu hasil tersimpan; jangan kirim ulang.</p>}
       <Button type="submit" variant="contained" size="large" disabled={busy}>{busy ? "Inspeksi berlangsung..." : retake ? "Periksa foto ulang" : batchId ? "Unggah ke batch ini" : "Buat Batch Baru & Periksa Foto"}</Button>
     </form>
   </section>;
