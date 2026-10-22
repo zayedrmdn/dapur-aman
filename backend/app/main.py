@@ -22,7 +22,6 @@ from fastapi import (
     UploadFile,
     File,
     Form,
-    Header,
     HTTPException,
     Depends,
     status,
@@ -72,7 +71,7 @@ from app.schemas import (
 )
 from agents.compliance.rules import RULE_TABLE_VERSION
 from agents.contract import Finding as ContractFinding
-from agents.contract import InspectionInput, Menu, RunState
+from agents.contract import InspectionInput, Menu, Outcome, RunState
 from agents.contract import Photo as ContractPhoto
 from agents.workflow import run_inspection
 from app.inspection import InvalidPhotoError, build_response, to_jpeg
@@ -186,7 +185,6 @@ async def inspect_food_photo(
     batch_id: str | None = Form(None, description="Opsional: ID batch untuk mengelompokkan beberapa meja/baki"),
     is_retake: bool = Form(False),
     school_id: str | None = Form(None, description="Opsional: ID sekolah penerima"),
-    x_actor_id: str | None = Header(None, alias="X-Actor-Id"),
     _: None = Depends(verify_shared_secret),
     db: Session = Depends(get_db),
 ) -> InspectionResponseSchema:
@@ -351,7 +349,6 @@ async def inspect_food_photo(
             )
         db.commit()
 
-        # Otomasi Notifikasi Telegram & Penerbitan Surat Kelaikan
         supervisor = (
             db.query(User)
             .filter(User.role == "supervisor")
@@ -359,59 +356,12 @@ async def inspect_food_photo(
         )
         sup_chat = supervisor.telegram_chat_id if (supervisor and supervisor.telegram_chat_id) else None
         sup_name = supervisor.name if supervisor else "Supervisor Dapur MBG"
-        sup_phone = supervisor.phone_number if supervisor else "+62 811-2233-4455"
-
-        # Lookup data sekolah penerima untuk penerbitan surat kelaikan
-        batch_obj = db.query(Batch).filter(Batch.id == active_batch_id).first()
-        target_school_id = (batch_obj.target_school_id if batch_obj else None) or school_id or "sch_01"
-        target_school = (
-            db.query(SchoolRecipient).filter(SchoolRecipient.id == target_school_id).first()
-            or db.query(SchoolRecipient).first()
-        )
-        school_name = (target_school.name if target_school else None) or (batch_obj.target_school_name if batch_obj else None) or "SDN 01 Merdeka Bandung"
-        principal_name = target_school.principal_name if target_school else "Bpk. Drs. H. Bambang Sutrisno, M.Pd"
-        school_phone = target_school.phone_number if target_school else "+62 812-3456-7890"
-        school_address = target_school.address if target_school else "Jl. Merdeka No. 45, Bandung"
-        total_trays = target_school.portion_count if target_school else 450
-        school_chat = target_school.telegram_chat_id if (target_school and target_school.telegram_chat_id) else None
-
-        actor = db.query(User).filter((User.id == x_actor_id) | (User.username == x_actor_id)).first() if x_actor_id else None
-        current_actor_name = actor.name if actor else sup_name
+        sup_phone = supervisor.phone_number if supervisor else None
+        run_completed = outcome.state == RunState.COMPLETED
+        visibly_clean = run_completed and outcome.outcome == Outcome.NO_VISIBLE_CONCERN
 
         try:
-            is_clean = len(outcome.findings) == 0
-
-            if is_retake:
-                if is_clean:
-                    # Foto periksa ulang bersih (0 temuan): tandai semua temuan terbuka selesai (fixed)
-                    prev_open = db.query(Finding).filter(Finding.batch_id == active_batch_id, Finding.status == "open").all()
-                    for f in prev_open:
-                        f.status = "fixed"
-                        f.resolution_note = "Terverifikasi bersih pada periksa ulang (retake) oleh Vision Agent."
-                        f.resolution_actor_id = actor.id if actor else "usr_staff1"
-                        f.resolution_at = datetime.now(timezone.utc)
-
-                    if batch_obj:
-                        batch_obj.status = "closed"
-                    db.commit()
-
-                    # LANGSUNG terbitkan dan kirim Surat Kelaikan Resmi ke Telegram Sekolah
-                    asyncio.create_task(
-                        send_school_clearance_report(
-                            batch_id=active_batch_id,
-                            menu_name=(batch_obj.menu_name if batch_obj else None) or clean_table_name,
-                            supervisor_name=current_actor_name,
-                            school_name=school_name,
-                            principal_name=principal_name,
-                            phone_number=school_phone,
-                            address=school_address,
-                            total_trays=total_trays,
-                            photo_url=presigned_photo_url,
-                            chat_id=school_chat,
-                        )
-                    )
-
-                # Kirim laporan hasil periksa ulang ke supervisor
+            if is_retake and (outcome.findings or visibly_clean):
                 asyncio.create_task(
                     send_supervisor_retake_notification(
                         table_name=clean_table_name,
@@ -423,31 +373,7 @@ async def inspect_food_photo(
                         supervisor_phone=sup_phone,
                     )
                 )
-
-            elif is_clean:
-                # Inspeksi baru 100% bersih tanpa temuan: langsung terbitkan Surat Kelaikan
-                if batch_obj:
-                    batch_obj.status = "closed"
-                db.commit()
-
-                # LANGSUNG terbitkan dan kirim Surat Kelaikan Resmi ke Telegram Sekolah
-                asyncio.create_task(
-                    send_school_clearance_report(
-                        batch_id=active_batch_id,
-                        menu_name=(batch_obj.menu_name if batch_obj else None) or clean_table_name,
-                        supervisor_name=current_actor_name,
-                        school_name=school_name,
-                        principal_name=principal_name,
-                        phone_number=school_phone,
-                        address=school_address,
-                        total_trays=total_trays,
-                        photo_url=presigned_photo_url,
-                        chat_id=school_chat,
-                    )
-                )
-
-            else:
-                # Inspeksi baru dengan temuan bahaya/kualitas: kirim peringatan ke supervisor
+            elif not is_retake and outcome.findings:
                 asyncio.create_task(
                     send_supervisor_safety_alert(
                         table_name=clean_table_name,
@@ -678,7 +604,8 @@ def get_supervisor_dashboard(
     _: None = Depends(verify_shared_secret),
     actor: User = Depends(get_current_actor),
 ) -> SupervisorDashboardSchema:
-    is_spv = actor.role == "supervisor"
+    if actor.role != "supervisor":
+        raise HTTPException(status_code=403, detail="Supervisor access required.")
     now = datetime.now(timezone.utc)
     safety_findings = db.query(Finding).filter(Finding.level == "safety").all()
     safety_findings.sort(
@@ -722,7 +649,7 @@ def get_supervisor_dashboard(
                 detail=finding.explanation,
                 level=finding.level,
                 subtitle=subtitle,
-                assigned_staff="Tim Packing Meja",
+                assigned_staff="",
                 box=card.box,
                 hold_action_label=f"Hold batch {finding.batch_id}",
             )
@@ -780,7 +707,7 @@ def get_supervisor_dashboard(
         kitchen_name="SPPG Cibeureum (Dapur Sentral MBG)",
         date_str=now.strftime("%a %d %b %H:%M UTC"),
         headline=f"{len(feed)} temuan keamanan tercatat: {fixed} selesai diperbaiki staf, {dismissed} diabaikan beralasan, {open_count} aktif butuh tindakan",
-        is_supervisor=is_spv,
+        is_supervisor=True,
         stats={"total_safety": len(feed), "fixed": fixed, "dismissed": dismissed, "open": open_count},
         total_portions_cleared=total_portions_cleared,
         clean_pass_rate=pass_rate,
@@ -978,8 +905,7 @@ async def record_human_action(
     db.add(action_record)
     db.commit()
 
-    # Otomasi: Jika batch berhasil ditutup (100% lolos verifikasi), kirim Surat Kelaikan ke Kepala Sekolah
-    if payload.action == "close":
+    if payload.action == "close" and actor.role == "supervisor":
         target_id = batch.target_school_id or "sch_01"
         school = db.query(SchoolRecipient).filter(SchoolRecipient.id == target_id).first()
         if not school:
@@ -1054,14 +980,14 @@ async def trigger_test_alert(
             "concern_type": "hair",
             "level": "safety",
             "explanation": "Ditemukan sehelai rambut pada kuadran nasi bagian kanan.",
-            "rule_reference": "rule-table-v1:foreign-01 (Permenkes 1096)",
+            "rule_reference": "rule-table-v1:foreign-01",
             "suggested_action": "Angkat dan ganti porsi nasi yang terdampak, lalu lakukan foto ulang.",
         },
         {
             "concern_type": "empty_compartment",
             "level": "quality",
             "explanation": "Kompartemen sayur masih kosong, belum diisi tumis buncis.",
-            "rule_reference": "rule-table-v1:menu-01 (Standar BGN)",
+            "rule_reference": "rule-table-v1:menu-01",
             "suggested_action": "Isi kompartemen sayur sesuai menu MBG hari ini.",
         },
     ]
@@ -1114,9 +1040,13 @@ async def trigger_dispatch_report(
     actor: User = Depends(get_current_actor),
 ) -> dict:
     """Kirim Surat Kelayakan Distribusi MBG ke Telegram Kepala Sekolah / Tim Pengawas."""
+    if actor.role != "supervisor":
+        raise HTTPException(status_code=403, detail="Hanya supervisor yang dapat mengirim surat kelayakan.")
     batch = db.query(Batch).filter(Batch.id == batch_id).first()
     if not batch:
         raise HTTPException(status_code=404, detail=f"Batch '{batch_id}' tidak ditemukan.")
+    if batch.status != "closed":
+        raise HTTPException(status_code=409, detail="Surat kelayakan hanya untuk batch yang sudah ditutup supervisor.")
 
     target_id = school_id or batch.target_school_id or "sch_01"
     school = db.query(SchoolRecipient).filter(SchoolRecipient.id == target_id).first()
