@@ -139,6 +139,13 @@ async def send_supervisor_safety_alert(
     return await send_telegram_raw(message, target_chat, photo_url=photo_url)
 
 
+def holding_deadline_wib(first_photo_at: datetime | None, holding_hours: int = 4) -> str:
+    start = first_photo_at or datetime.now(timezone.utc)
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+    return (start.astimezone(WIB) + timedelta(hours=holding_hours)).strftime("%H:%M WIB")
+
+
 async def send_school_clearance_report(
     batch_id: str,
     menu_name: str,
@@ -151,12 +158,12 @@ async def send_school_clearance_report(
     holding_hours: int = 4,
     photo_url: str | None = None,
     chat_id: str | None = None,
+    first_photo_at: datetime | None = None,
 ) -> dict:
     """Format and send the batch inspection report to the school contact."""
     target_chat = chat_id or TELEGRAM_SCHOOL_CHAT_ID or TELEGRAM_SUPERVISOR_CHAT_ID
 
-    now_wib = datetime.now(WIB)
-    limit_time = (now_wib + timedelta(hours=holding_hours)).strftime("%H:%M WIB")
+    limit_time = holding_deadline_wib(first_photo_at, holding_hours)
 
     recipient_lines = [f"🏫 <b>{html.escape(school_name)}</b>"]
     if principal_name:
@@ -183,7 +190,7 @@ async def send_school_clearance_report(
         "• Semua temuan sudah ditangani dan dicatat oleh manusia.\n"
         "• Foto hanya membantu melihat kemungkinan masalah. Hasil foto bukan jaminan keamanan pangan.\n\n"
         f"⏱️ <b>BATAS WAKTU SIMPAN (HOLDING TIME):</b>\n"
-        f"Maksimal pukul <b>{limit_time}</b> (asumsi demo: maksimal 4 jam sejak selesai pengolahan, belum diverifikasi).\n"
+        f"Maksimal pukul <b>{limit_time}</b> (asumsi demo: 4 jam sejak foto pertama batch, belum diverifikasi; waktu sejak selesai masak bisa lebih lama).\n"
     )
 
     if photo_url:

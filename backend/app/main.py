@@ -962,6 +962,7 @@ async def record_human_action(
                 total_trays=total_trays,
                 photo_url=clearance_photo_url,
                 chat_id=school_chat,
+                first_photo_at=batch.created_at,
             )
         except Exception as notify_err:
             logger.warning("Gagal mengirim laporan pemeriksaan batch ke sekolah: %s", notify_err)
@@ -1113,6 +1114,7 @@ async def trigger_dispatch_report(
         total_trays=total_trays,
         photo_url=photo_url,
         chat_id=school_chat,
+        first_photo_at=batch.created_at,
     )
     return {
         "status": "ok",

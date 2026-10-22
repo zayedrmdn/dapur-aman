@@ -508,7 +508,7 @@ Untuk alur browser lengkap secara lokal tanpa layanan cloud, `backend/tests/loca
 
 - **Bukti hanya dari foto.** Agen tidak dapat memeriksa suhu, bau, tekstur, atau lama penyimpanan, dan foto tidak dapat menunjukkan keamanan mikrobiologis. Output bisa salah; temperature 0 mengurangi variasi tetapi tidak membuat output benar.
 - **Aturan masih asumsi demo.** Belum ada aturan yang ditautkan ke regulasi, dan batas waktu penyimpanan 4 jam belum diverifikasi.
-- **Titik awal waktu penyimpanan tidak konsisten.** Penghitung waktu dimulai dari foto pertama batch; footer dasbor dan laporan ke sekolah menyebut batas dihitung sejak selesai memasak. Baris batas waktu di laporan adalah waktu pengiriman ditambah 4 jam.
+- **Waktu penyimpanan dihitung dari foto pertama.** Penghitung waktu, footer dasbor, dan batas waktu di laporan ke sekolah menghitung batas demo 4 jam dari foto pertama batch, bukan dari selesai memasak, sehingga waktu sebenarnya sejak selesai memasak bisa lebih lama.
 - **Semua pengguna yang sudah masuk dapat menutup batch.** Laporan ke sekolah hanya dikirim otomatis saat supervisor yang menutup.
 - **Penahanan hanya mencegah penutupan.** Penahanan tidak mencegah foto baru atau keputusan atas temuan.
 - **Hanya Vision yang melihat foto.** Agen Orchestrator dan Compliance bekerja dari teks Vision.

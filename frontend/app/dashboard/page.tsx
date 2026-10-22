@@ -710,7 +710,7 @@ export default function SupervisorDashboardPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div>
                   <span className="font-extrabold text-ink">Batas waktu simpan makanan siap saji:</span>{" "}
-                  <span className="text-ink2">Maksimal 4 jam dari selesainya pengolahan (asumsi demo, belum diverifikasi).</span>
+                  <span className="text-ink2">Maksimal 4 jam, dihitung dari foto pertama batch, bukan dari selesai masak (asumsi demo, belum diverifikasi).</span>
                 </div>
                 <div className="font-bold text-ink2">
                   <span>Foto hanya membantu melihat kemungkinan masalah; hasil foto bukan jaminan keamanan pangan.</span>

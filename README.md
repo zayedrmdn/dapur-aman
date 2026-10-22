@@ -508,7 +508,7 @@ For a full local browser journey without cloud services, `backend/tests/local_mv
 
 - **Photo-only evidence.** The agents cannot check temperature, smell, texture or storage time, and a photo cannot show microbiological safety. Outputs can be wrong; temperature 0 reduces variation but does not make the output correct.
 - **Rules are demo assumptions.** No rule is linked to a regulation yet, and the 4-hour holding limit is unverified.
-- **Holding-time start is inconsistent.** The timer counts from the batch's first photo; the dashboard footer and the school report describe the limit as counted from the end of cooking. The report's deadline line is the send time plus 4 hours.
+- **Holding time starts at the first photo.** The timer, the dashboard footer and the school report's deadline all count the 4-hour demo limit from the batch's first photo, not from the end of cooking, so the real time since cooking can be longer.
 - **Any signed-in user can close a batch.** The school report is sent automatically only when a supervisor closes.
 - **A hold blocks closing only.** It does not block new photos or finding decisions.
 - **Only Vision sees the photo.** The Orchestrator and Compliance agents work from Vision's text.

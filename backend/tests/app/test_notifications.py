@@ -18,3 +18,9 @@ def test_school_report_is_an_inspection_report_not_a_safety_certificate(monkeypa
     assert "asumsi demo" in message
     for misleading in ["KELAYAKAN", "SURAT", "BATAS AMAN"]:
         assert misleading not in message.upper()
+
+
+def test_school_report_deadline_counts_from_the_first_photo():
+    from datetime import datetime
+    first_photo_utc = datetime(2026, 10, 22, 1, 30)
+    assert app.notifications.holding_deadline_wib(first_photo_utc) == "12:30 WIB"
