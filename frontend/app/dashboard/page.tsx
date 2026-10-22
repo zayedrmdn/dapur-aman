@@ -8,6 +8,9 @@ import Chip from "@mui/material/Chip";
 import { api, ApiError, time, type SupervisorDashboardData, type BatchListItem } from "@/lib/contracts";
 import { backendLabel, batchHeading, concernLabel, findingSubtitle } from "@/lib/labels";
 import { TechnicalDetails } from "../components/StaffShell";
+import { CameraIcon, LogoutIcon, RefreshIcon } from "../components/icons";
+
+const headerAction = "inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg px-2.5 text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-white";
 
 function loadErrorMessage(err: unknown): string {
   if (err instanceof ApiError && err.status === 403) return "Dasbor ini hanya untuk supervisor. Masuk dengan akun supervisor untuk melihatnya.";
@@ -207,90 +210,52 @@ export default function SupervisorDashboardPage() {
 
   return (
     <div className="min-h-screen bg-ground text-ink">
-      {/* 1. TOP HEADER */}
-      <header className="sticky top-0 z-30 border-b border-brand-dark bg-brand text-white">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-white/15 text-xl font-black tracking-tight text-white">
-              DA
-            </span>
-            <div>
-              <h1 className="text-lg font-black tracking-tight sm:text-xl">
-                Dapur Aman <span className="text-xs font-normal opacity-85">by Nexara</span>
+      <header className="sticky top-0 z-30 bg-brand text-white">
+        <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 py-2.5 sm:px-6">
+          <Link href="/dashboard" className="flex min-w-0 flex-1 items-center gap-2.5">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/15 text-base font-black tracking-tight">DA</span>
+            <span className="min-w-0">
+              <h1 className="truncate text-base leading-tight font-black tracking-tight sm:text-lg">
+                Dapur Aman <span className="hidden text-xs font-normal opacity-85 sm:inline">by Nexara</span>
               </h1>
-              <p className="text-xs text-white/80">
-                {data?.kitchen_name || "Memuat data dapur..."} • Dasbor supervisor
-              </p>
-            </div>
+              <span className="line-clamp-2 text-xs leading-snug text-white/80">{data?.kitchen_name || "Memuat data dapur..."}</span>
+            </span>
           </Link>
-
-          {/* Quick Nav & Actor */}
-          <div className="flex flex-wrap items-center gap-2 text-xs sm:gap-3">
-            {userName && (
-              <div className="hidden flex-col text-right md:flex">
-                <span className="font-bold text-white">{userName}</span>
-                <span className="text-[11px] text-white/75">
-                  {userRole === "supervisor" ? "Supervisor" : "Petugas dapur"}
-                </span>
-              </div>
-            )}
-
-            <Link
-              href="/staff"
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 font-bold text-white transition hover:bg-white/20"
-            >
-              Layar staf
+          {userName && (
+            <span className="hidden flex-col text-right text-xs md:flex">
+              <span className="font-bold">{userName}</span>
+              <span className="text-[11px] text-white/75">{userRole === "supervisor" ? "Supervisor" : "Petugas dapur"}</span>
+            </span>
+          )}
+          <nav aria-label="Aksi dasbor" className="flex shrink-0 items-center gap-1 text-sm font-bold">
+            <Link href="/staff" aria-label="Layar staf" title="Layar staf" className={headerAction}>
+              <CameraIcon size={18} /><span className="hidden sm:inline">Layar staf</span>
             </Link>
-
-            <button
-              onClick={() => loadDashboard()}
-              title="Segarkan data terbaru"
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 font-bold text-white transition hover:bg-white/20"
-            >
-              Segarkan
+            <button type="button" onClick={() => loadDashboard()} aria-label="Segarkan data" title="Segarkan data" className={headerAction}>
+              <RefreshIcon size={18} /><span className="hidden sm:inline">Segarkan</span>
             </button>
-
-            <button
-              onClick={handleLogout}
-              className="inline-flex min-h-11 items-center rounded-lg bg-black/20 px-3 py-1.5 font-bold text-white transition hover:bg-black/30"
-            >
-              Keluar
+            <button type="button" onClick={handleLogout} aria-label="Keluar" title="Keluar" className={`${headerAction} bg-black/20 hover:bg-black/30`}>
+              <LogoutIcon size={18} /><span className="hidden sm:inline">Keluar</span>
             </button>
+          </nav>
+        </div>
+        <div className="border-t border-white/15 bg-brand-dark/60">
+          <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-3 px-4 text-xs sm:px-6">
+            <span className="flex min-w-0 items-center gap-2 py-1">
+              <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${autoRefresh ? "bg-white" : "bg-white/40"}`} />
+              <span className="truncate">
+                <b className="hidden sm:inline">Dasbor supervisor · </b>
+                {currentTime ? <span>Diperbarui {currentTime} WIB</span> : <span>Memuat...</span>}
+                {data?.headline && <span className="hidden text-white/80 lg:inline"> · {data.headline}</span>}
+              </span>
+            </span>
+            <label className="flex min-h-11 shrink-0 cursor-pointer items-center gap-2 select-none">
+              <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} className="size-4 accent-white" />
+              Otomatis <span className="text-white/75">20 dtk</span>
+            </label>
           </div>
         </div>
       </header>
-
-      {/* SUB-HEADER: STATUS & TIME */}
-      <div className="border-b border-rule bg-paper">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
-          <div className="flex items-center gap-3 text-xs">
-            <span className="font-bold text-brand-dark">Pemantauan batch</span>
-            {data?.headline && (
-              <>
-                <span className="hidden text-ink2 sm:inline">•</span>
-                <span className="hidden text-ink2 sm:inline">{data.headline}</span>
-              </>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3 text-xs">
-            <label className="flex min-h-11 cursor-pointer items-center gap-1.5 text-ink2 select-none">
-              <input
-                type="checkbox"
-                checked={autoRefresh}
-                onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="rounded accent-brand"
-              />
-              Segarkan otomatis (20 dtk)
-            </label>
-            {currentTime && (
-              <span className="font-semibold text-brand-dark">
-                {currentTime} WIB
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
 
       <main className="mx-auto max-w-[1280px] space-y-6 px-4 py-6 sm:px-6">
         {/* ACTION NOTICE */}

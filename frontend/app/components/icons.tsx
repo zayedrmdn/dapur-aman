@@ -4,8 +4,8 @@ function Icon({ children, size = 20 }: { children: ReactNode; size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">{children}</svg>;
 }
 
-export function CameraIcon() {
-  return <Icon><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></Icon>;
+export function CameraIcon({ size }: { size?: number }) {
+  return <Icon size={size}><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></Icon>;
 }
 
 export function ArrowIcon({ size = 18 }: { size?: number }) {
@@ -44,4 +44,12 @@ export function EyeOffIcon() {
 
 export function GalleryIcon() {
   return <Icon><rect x="3.5" y="4.5" width="17" height="15" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="m4 17 5-4.5 4 3.5 3-2.5 4 3.5" /></Icon>;
+}
+
+export function RefreshIcon({ size }: { size?: number }) {
+  return <Icon size={size}><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></Icon>;
+}
+
+export function LogoutIcon({ size }: { size?: number }) {
+  return <Icon size={size}><path d="M10 4H5v16h5M15 8l4 4-4 4M19 12H9" /></Icon>;
 }
