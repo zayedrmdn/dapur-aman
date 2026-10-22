@@ -42,6 +42,7 @@ class BatchDetailSchema(BaseModel):
     batch_id: str
     table_name: str
     menu_name: str | None = None
+    school_name: str | None = None
     status: Literal["in_review", "on_hold", "closed"]
     photo_url: str | None = None
     created_at: datetime
@@ -61,6 +62,8 @@ class PackingPhotoRowSchema(BaseModel):
     status: Literal["clean", "review_required", "retake_required"]
     photo_url: str | None = None
     has_check: bool = True
+    school_name: str | None = None
+    created_at: datetime | None = None
 
 
 class BatchOverviewSchema(BaseModel):

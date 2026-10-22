@@ -519,6 +519,8 @@ def get_batch_overview(
                 status=row_status,
                 photo_url=photo_url,
                 has_check=completed,
+                school_name=b.target_school_name,
+                created_at=b.created_at,
             )
         )
 
@@ -674,6 +676,7 @@ def get_supervisor_dashboard(
         batches.append(BatchListItemSchema(
             batch_id=batch.id, menu_name=batch.menu_name, photos_count=len(batch.photos),
             subtitle=subtitle, status=state, badge_label=label, badge_color=color,
+            table_name=batch.table_name, school_name=batch.target_school_name, created_at=batch.created_at,
         ))
 
     # Data alokasi sekolah & porsi
@@ -801,6 +804,7 @@ def get_batch_detail(
         batch_id=batch.id,
         table_name=batch.table_name or batch.menu_name,
         menu_name=batch.menu_name,
+        school_name=batch.target_school_name,
         status=batch.status,  # type: ignore
         photo_url=photo_url,
         created_at=batch.created_at,

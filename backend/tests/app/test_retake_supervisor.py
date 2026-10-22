@@ -142,6 +142,20 @@ def test_overview_dynamic_metadata_uses_saved_batch_and_supervisor(api):
     assert data["today_menu_setter"] == "Test Supervisor"
 
 
+def test_batch_lists_and_detail_carry_readable_table_school_and_time(api):
+    client, db = api
+    db.get(Batch, "batch_actual_identifier").target_school_name = "SD Uji"
+    db.commit()
+    headers = {"X-Shared-Secret": "test-secret", "X-Actor-Id": "supervisor"}
+    row = client.get("/api/overview", headers=STAFF).json()["packing_photos"][0]
+    listed = client.get("/api/supervisor/dashboard", headers=headers).json()["batches"][0]
+    detail = client.get("/api/batches/batch_actual_identifier", headers=headers).json()
+    assert listed["table_name"] == row["table_name"] == "Table test"
+    assert row["school_name"] == listed["school_name"] == detail["school_name"] == "SD Uji"
+    assert row["created_at"] and row["created_at"] == listed["created_at"] == detail["created_at"]
+    assert listed["batch_id"] == row["batch_id"] == "batch_actual_identifier"
+
+
 def test_missing_resolution_metadata_and_empty_safety_feed_are_honest(api):
     client, db = api
     finding = db.get(Finding, "old_finding")
