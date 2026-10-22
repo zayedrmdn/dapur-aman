@@ -6,6 +6,8 @@ import { ErrorMessage, inputClass } from "./StaffShell";
 import { CameraIcon, GalleryIcon } from "./icons";
 import MenuTags, { splitMenu } from "./MenuTags";
 import InspectionSteps from "./InspectionSteps";
+import { runErrorLabel } from "@/lib/labels";
+import { clearPendingInspection, newBatchId, readPendingInspection, savePendingInspection } from "@/lib/pending-inspection";
 
 async function preparePhoto(file: File): Promise<File> {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Pilih foto JPEG, PNG, atau WebP.");
@@ -54,6 +56,7 @@ const DEMO_MENU = "Nasi putih, Ayam kecap, Tumis buncis, Tahu goreng, Anggur";
 export default function UploadForm({ batchId, menu, table, retake = false, done }: { batchId?: string; menu?: string | null; table?: string; retake?: boolean; done: (id: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [resume, setResume] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -63,19 +66,41 @@ export default function UploadForm({ batchId, menu, table, retake = false, done 
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = new FormData(event.currentTarget);
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setResume("");
     try {
       if (!String(form.get("menu_items") ?? "").trim()) throw new Error("Tambahkan minimal satu komponen menu.");
       if (!photo || !photo.size) throw new Error("Ambil atau pilih foto meja atau rak.");
       form.set("photo", await preparePhoto(photo));
       if (batchId) form.set("batch_id", batchId);
+      else {
+        const stored = readPendingInspection();
+        const nextId = stored ? stored.batchId : newBatchId();
+        form.set("batch_id", nextId);
+        savePendingInspection(nextId, String(form.get("table_name") ?? ""));
+      }
       form.set("is_retake", String(retake));
       const result = await api<{ batch_id: string }>("inspect", form);
+      clearPendingInspection();
       done(result.batch_id);
     } catch (error) {
+      if (error instanceof ApiError && error.detail?.batch_id) {
+        clearPendingInspection();
+        setError(runErrorLabel(error.detail));
+        done(error.detail.batch_id);
+        return;
+      }
+      if (readPendingInspection()) {
+        setResume(error instanceof ApiError && error.status === 429
+          ? "Inspeksi Anda masih berjalan di server. Jangan kirim ulang; cek status lewat panel status inspeksi."
+          : "Koneksi ke server terputus. Inspeksi mungkin masih berjalan di server; cek status lewat panel status inspeksi.");
+        return;
+      }
       setError(error instanceof Error ? error.message : "Inspeksi belum berhasil.");
-      if (error instanceof ApiError && error.detail?.batch_id) done(error.detail.batch_id);
     } finally { setBusy(false); }
+  }
+  function showInspectionStatus() {
+    document.getElementById("dapur-inspection-status")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.dispatchEvent(new Event("dapur:pending-inspection"));
   }
   return <section className="border-t border-rule px-4 py-5">
     <h2 className="text-lg font-extrabold">{retake ? "Foto ulang setelah tindakan" : batchId ? "Tambahkan foto ke batch ini" : "Mulai batch baru"}</h2>
@@ -100,6 +125,9 @@ export default function UploadForm({ batchId, menu, table, retake = false, done 
       </fieldset>
       <p className="text-xs text-ink2">Foto dikonversi ke JPEG, sisi panjang hingga 1600 piksel. Gunakan foto yang jelas sebelum tutup dipasang.</p>
       {error && <ErrorMessage>{error}</ErrorMessage>}
+      {resume && <p role="alert" className="rounded-xl border border-rule bg-paper p-3 text-sm">{resume}
+        <button type="button" onClick={showInspectionStatus} className="mt-2 block font-bold text-brand underline">Lihat status inspeksi</button>
+      </p>}
       {busy && <InspectionSteps />}
       <Button type="submit" variant="contained" size="large" disabled={busy}>{busy ? "Inspeksi berlangsung..." : retake ? "Periksa foto ulang" : batchId ? "Unggah ke batch ini" : "Buat Batch Baru & Periksa Foto"}</Button>
     </form>

@@ -30,6 +30,14 @@ function photo(batchId, fail = false) {
   if (batchId) { data.set("batch_id", batchId); data.set("is_retake", "true"); }
   return data;
 }
+function newBatchPhoto(batchId) {
+  const data = new FormData();
+  const bytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=", "base64");
+  data.set("photo", new File([bytes], "test.png", { type: "image/png" }));
+  data.set("table_name", "Meja pengujian"); data.set("menu_items", "Nasi, ayam, sayur");
+  data.set("batch_id", batchId); data.set("is_retake", "false");
+  return data;
+}
 test("sessions, CSRF and missing configuration fail closed", async () => {
   assert.equal((await staffApi(request("overview"), "overview")).status, 401);
   assert.equal((await staffApi(request("overview", "dapur_session=forged"), "overview")).status, 401);
@@ -167,6 +175,47 @@ test("Cloud Run front-end refusals and bad invoker JSON are configuration errors
   } finally {
     delete process.env.GCP_INVOKER_CREDENTIALS;
     process.env.BACKEND_URL = previousUrl;
+    await new Promise(resolve => stub.close(resolve));
+  }
+});
+test("a batch id the phone chose is used for the new batch, so a reload can find it again", async () => {
+  const cookie = await signIn("local_staff");
+  const chosen = "batch_clientpicked01";
+  const response = await staffApi(request("inspect", cookie, newBatchPhoto(chosen)), "inspect");
+  const result = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(result));
+  assert.equal(result.batch_id, chosen);
+  const path = `batches/${chosen}`;
+  const saved = await staffApi(request(path, cookie), path);
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json()).batch_id, chosen);
+});
+test("a second inspection is refused while the first one is still running", async () => {
+  const http = require("node:http");
+  const { signSession } = require("../lib/session.ts");
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const stub = http.createServer(async (incoming, outgoing) => {
+    await gate;
+    outgoing.writeHead(200, { "Content-Type": "application/json" });
+    outgoing.end(JSON.stringify({ status: "review_required", batch_id: "batch_running01", run_id: "run_running01", findings: [] }));
+  });
+  await new Promise(resolve => stub.listen(0, "127.0.0.1", resolve));
+  const previousUrl = process.env.BACKEND_URL;
+  process.env.BACKEND_URL = `http://127.0.0.1:${stub.address().port}`;
+  const cookie = `dapur_session=${signSession({ actor_id: "test_staff", name: "Staf", username: "local_staff", role: "kitchen_staff" }, process.env.SESSION_SECRET)}`;
+  try {
+    const first = staffApi(request("inspect", cookie, photo()), "inspect");
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const second = await staffApi(request("inspect", cookie, photo()), "inspect");
+    assert.equal(second.status, 429);
+    assert.match((await second.json()).detail, /masih berjalan/);
+    release();
+    assert.equal((await first).status, 200);
+  } finally {
+    release();
+    process.env.BACKEND_URL = previousUrl;
+    stub.closeAllConnections();
     await new Promise(resolve => stub.close(resolve));
   }
 });

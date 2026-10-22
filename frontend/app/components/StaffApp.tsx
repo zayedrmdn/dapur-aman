@@ -7,6 +7,7 @@ import { api, ApiError, time, type Batch, type Overview } from "@/lib/contracts"
 import StaffShell, { ErrorMessage, inputClass } from "./StaffShell";
 import UploadForm from "./UploadForm";
 import BatchResult from "./BatchResult";
+import InspectionStatus from "./InspectionStatus";
 import { backendLabel, batchHeading } from "@/lib/labels";
 import { matchingRows, newestFirst, visibleRows } from "@/lib/batch-list";
 
@@ -51,6 +52,7 @@ export default function StaffApp({ review = false }: { review?: boolean }) {
     {error && <div className="p-4"><ErrorMessage>{error}</ErrorMessage><Button onClick={() => { void load(); }}>Coba muat ulang</Button></div>}
     {notice && <p role="status" className="px-4 pt-4 text-sm">{notice}</p>}
     {!user && !error && <p role="status" className="p-4">Memeriksa sesi...</p>}
+    {user && <InspectionStatus />}
     {user && !review && <>
       <section className="p-4"><h2 className="text-lg font-extrabold">Batch tersimpan</h2><p className="mt-1 text-sm text-ink2">Pilih batch untuk meninjau foto, mencatat tindakan, atau mengambil foto ulang.</p>
         {!overview ? <p role="status" className="mt-4">Memuat batch...</p> : !rows.length ? <p className="mt-4 text-sm">Belum ada batch. Foto pertama akan membuat batch baru.</p> : <>

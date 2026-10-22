@@ -23,7 +23,7 @@ export type Overview = { packing_photos: { batch_id: string; table_name: string;
 export type Event = { sequence: number; timestamp: string; agent: string; step: string; kind: string; status: string; summary: string; error: string | null; uncertainty: string | null; references: string[] };
 
 export class ApiError extends Error {
-  constructor(message: string, public detail?: { batch_id?: string; run_id?: string }, public status?: number) { super(message); }
+  constructor(message: string, public detail?: { batch_id?: string; run_id?: string; code?: string; stage?: string }, public status?: number) { super(message); }
 }
 export async function api<T>(path: string, data?: object | FormData): Promise<T> {
   let response: Response;
