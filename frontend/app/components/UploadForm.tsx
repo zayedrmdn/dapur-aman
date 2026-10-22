@@ -5,6 +5,7 @@ import { api, ApiError } from "@/lib/contracts";
 import { ErrorMessage, inputClass } from "./StaffShell";
 import { CameraIcon, GalleryIcon } from "./icons";
 import MenuTags, { splitMenu } from "./MenuTags";
+import InspectionSteps from "./InspectionSteps";
 
 async function preparePhoto(file: File): Promise<File> {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Pilih foto JPEG, PNG, atau WebP.");
@@ -99,7 +100,7 @@ export default function UploadForm({ batchId, menu, retake = false, done }: { ba
       </fieldset>
       <p className="text-xs text-ink2">Foto dikonversi ke JPEG, sisi panjang hingga 1600 piksel. Gunakan foto yang jelas sebelum tutup dipasang.</p>
       {error && <ErrorMessage>{error}</ErrorMessage>}
-      {busy && <p role="status" className="bg-mint p-3 text-sm">Foto sedang diproses oleh agen Orkestrator, Vision, dan Kepatuhan. Tunggu hasil tersimpan; jangan kirim ulang.</p>}
+      {busy && <InspectionSteps />}
       <Button type="submit" variant="contained" size="large" disabled={busy}>{busy ? "Inspeksi berlangsung..." : retake ? "Periksa foto ulang" : batchId ? "Unggah ke batch ini" : "Buat Batch Baru & Periksa Foto"}</Button>
     </form>
   </section>;
