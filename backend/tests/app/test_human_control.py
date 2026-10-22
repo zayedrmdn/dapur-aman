@@ -51,7 +51,7 @@ def test_ai_never_closes_batch_or_resolves_findings(api, monkeypatch, letters, s
         return outcome_for(state)
 
     monkeypatch.setattr(app.main, "run_inspection", inspect)
-    assert upload(client, is_retake).status_code in (200, 502)
+    assert upload(client, is_retake).status_code in (200, 424)
     db.expire_all()
     assert db.get(Batch, BATCH).status == "on_hold"
     assert db.get(Finding, "old_finding").status == "open"

@@ -190,7 +190,7 @@ flowchart TD
 
 ### Perilaku saat gagal
 
-Inspeksi tidak pernah mengarang hasil. Setiap pemeriksaan yang gagal mengakhiri inspeksi sebagai `failed`, event dan error-nya disimpan, dan API mengembalikan 502 dengan kode error dan ID inspeksi. Hanya balasan agen yang tidak sesuai format JSON yang diulang, satu kali, dengan pesan perbaikan tetap. Error model, timeout, dan kegagalan tool tidak diulang, dan backend tidak memulai inspeksi baru dengan sendirinya.
+Inspeksi tidak pernah mengarang hasil. Setiap pemeriksaan yang gagal mengakhiri inspeksi sebagai `failed`, event dan error-nya disimpan, dan API mengembalikan 424 dengan kode error, ID inspeksi, dan ID batch (bukan 502, karena tunnel Cloudflare menggantinya dengan halaman error miliknya). Hanya balasan agen yang tidak sesuai format JSON yang diulang, satu kali, dengan pesan perbaikan tetap. Error model, timeout, dan kegagalan tool tidak diulang, dan backend tidak memulai inspeksi baru dengan sendirinya.
 
 | Kode error | Kapan |
 | --- | --- |

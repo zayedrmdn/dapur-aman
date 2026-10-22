@@ -398,7 +398,7 @@ async def inspect_food_photo(
 
     if response is None:
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail={
                 "code": outcome.error.code,
                 "message": outcome.error.message,

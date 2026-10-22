@@ -74,7 +74,7 @@ test("isolated HTTP journey: login, three agents, action, retake, failure and lo
   const after = await (await staffApi(request(batchPath, cookie), batchPath)).json();
   assert.equal(after.findings.find(item => item.id === finding.id).photo_id, result.photo_id);
   const failed = await staffApi(request("inspect", cookie, photo(result.batch_id, true)), "inspect");
-  assert.equal(failed.status, 502); assert.equal((await failed.json()).detail.batch_id, result.batch_id);
+  assert.equal(failed.status, 424); assert.equal((await failed.json()).detail.batch_id, result.batch_id);
   const overview = await (await staffApi(request("overview", cookie), "overview")).json();
   assert.equal(overview.packing_photos.find(item => item.batch_id === result.batch_id).status, "retake_required");
   const logout = await staffApi(request("logout", cookie, {}), "logout");

@@ -109,7 +109,7 @@ def test_retake_preserves_workflow_current_findings_and_failed_state(api, monkey
     assert db.query(SavedEvent).count() == 1
     assert db.get(Finding, "old_finding").status == "fixed"
     if outcome is None:
-        assert response.status_code == 502
+        assert response.status_code == 424
         saved = db.get(Run, response.json()["detail"]["run_id"])
         assert saved.state == "failed" and saved.outcome is None
     else:

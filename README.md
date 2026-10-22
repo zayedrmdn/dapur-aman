@@ -190,7 +190,7 @@ flowchart TD
 
 ### Failure behaviour
 
-A run never invents a result. Any failed check ends the run as `failed`, its events and error are stored, and the API returns 502 with the error code and run ID. Only an agent reply that does not match the expected JSON format is retried, once, with a fixed repair message. Model errors, timeouts and tool failures are not retried, and the backend does not start a new run by itself.
+A run never invents a result. Any failed check ends the run as `failed`, its events and error are stored, and the API returns 424 with the error code, run ID and batch ID (not 502, which the Cloudflare tunnel replaces with its own error page). Only an agent reply that does not match the expected JSON format is retried, once, with a fixed repair message. Model errors, timeouts and tool failures are not retried, and the backend does not start a new run by itself.
 
 | Error code | When |
 | --- | --- |
