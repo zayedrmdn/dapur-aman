@@ -1,6 +1,6 @@
 # Isolated staff journey check
 
-Run from separate terminals. These credentials belong only to this in-memory test server. No Vertex, Neon, or S3 calls are made. The three ADK agents and rule tools run with scripted model replies; the UI labels those results as tests. Stopping the server discards its data.
+Run from separate terminals. These credentials belong only to this in-memory test server. No Vertex, Neon, S3, or Telegram calls are made; the server blanks the Telegram settings itself and refuses to start if a token is still set. The three ADK agents and rule tools run with scripted model replies; the UI labels those results as tests. Stopping the server discards its data.
 
 From `backend/`:
 

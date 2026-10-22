@@ -9,6 +9,8 @@ os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["BACKEND_SHARED_SECRET"] = "synthetic-local-secret"
 os.environ["AI_PROVIDER"] = "fixture"
 os.environ["OTEL_SDK_DISABLED"] = "true"
+for telegram_setting in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "TELEGRAM_SUPERVISOR_CHAT_ID", "TELEGRAM_SCHOOL_CHAT_ID"):
+    os.environ[telegram_setting] = ""
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -16,6 +18,7 @@ from sqlalchemy.pool import StaticPool
 from fastapi import Response, HTTPException
 import uvicorn
 import app.main
+import app.notifications
 from app.auth import hash_password
 from app.database import Base, get_db
 from app.models import User
@@ -24,6 +27,8 @@ from agents.providers import ProviderSettings
 from agents.workflow import run_inspection_with
 from tests.agents.scripted_llm import ScriptedLlm, build_test_vision_agent, json_reply, tool_calls
 from tests.agents.test_workflow import FOREIGN_OBJECT_SEEN, compliance_replies
+
+assert not app.notifications.TELEGRAM_BOT_TOKEN, "The isolated server must never reach Telegram."
 
 engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
 Base.metadata.create_all(engine)
