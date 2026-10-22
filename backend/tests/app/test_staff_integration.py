@@ -25,6 +25,7 @@ def test_overview_never_clears_incomplete_or_uncertain_runs(api, state, outcome,
     if expected != "clean":
         assert row["summary_label"] != "No spots"
     detail = client.get("/api/batches/batch_actual_identifier", headers={"X-Shared-Secret": "test-secret"}).json()
+    assert detail["menu_name"] == "Test menu"
     saved = next(item for item in detail["runs"] if item["id"] == "new_run")
     assert saved["outcome"] == expected
     assert saved["state"] == state

@@ -41,6 +41,7 @@ class BatchDetailSchema(BaseModel):
 
     batch_id: str
     table_name: str
+    menu_name: str | None = None
     status: Literal["in_review", "on_hold", "closed"]
     photo_url: str | None = None
     created_at: datetime

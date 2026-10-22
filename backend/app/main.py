@@ -796,6 +796,7 @@ def get_batch_detail(
     return BatchDetailSchema(
         batch_id=batch.id,
         table_name=batch.table_name or batch.menu_name,
+        menu_name=batch.menu_name,
         status=batch.status,  # type: ignore
         photo_url=photo_url,
         created_at=batch.created_at,
