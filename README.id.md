@@ -430,8 +430,6 @@ Hanya nama variabel. Nilai sebenarnya ada di `backend/.env`, `frontend/.env.loca
 | `TELEGRAM_CHAT_ID` | Chat cadangan untuk peringatan supervisor dan laporan ke sekolah | Tidak |
 | `TELEGRAM_SUPERVISOR_CHAT_ID`, `TELEGRAM_SCHOOL_CHAT_ID` | Chat khusus; memakai `TELEGRAM_CHAT_ID` jika kosong | Tidak |
 
-`SEED_*`, `CORS_ALLOWED_ORIGINS`, dan dua nama chat Telegram khusus dibaca oleh kode tetapi belum tercantum di `backend/.env.example`.
-
 ### Frontend
 
 | Nama | Fungsi | Wajib |

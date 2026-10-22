@@ -430,8 +430,6 @@ Names only. Real values live in `backend/.env`, `frontend/.env.local` and the Ve
 | `TELEGRAM_CHAT_ID` | Fallback chat for supervisor alerts and school reports | No |
 | `TELEGRAM_SUPERVISOR_CHAT_ID`, `TELEGRAM_SCHOOL_CHAT_ID` | Specific chats; fall back to `TELEGRAM_CHAT_ID` | No |
 
-`SEED_*`, `CORS_ALLOWED_ORIGINS` and the two specific Telegram chat names are read by the code but not listed in `backend/.env.example`.
-
 ### Frontend
 
 | Name | Purpose | Required |
