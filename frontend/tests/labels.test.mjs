@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { batchHeading, findingSubtitle, formatWib, runErrorLabel } from "../lib/labels.ts";
+import { activitySummary, batchHeading, findingSubtitle, formatWib, runErrorLabel } from "../lib/labels.ts";
+test("known AI activity summaries read in Bahasa; unknown text is kept as it is", () => {
+  assert.equal(activitySummary("orchestrator agent started."), "Orkestrator mulai bekerja.");
+  assert.equal(activitySummary("inspect_photo(): Vision reported 1 observation(s)."), "Vision melaporkan 1 pengamatan.");
+  assert.equal(activitySummary("check_batch_history(concern_type=foreign_object): 0 earlier finding(s) in this batch."), "0 temuan sebelumnya di batch ini.");
+  assert.equal(activitySummary("lookup_rules(concern_type=foreign_object): 1 matching rule(s)."), "1 aturan cocok.");
+  assert.equal(activitySummary("A model sentence nobody mapped."), "A model sentence nobody mapped.");
+});
 test("batches are named by meja and school, never by their raw id", () => {
   assert.equal(batchHeading("SDN 01 Merdeka • Meja 1 (450 Porsi)", "SDN 01 Merdeka"), "SDN 01 Merdeka • Meja 1 (450 Porsi)");
   assert.equal(batchHeading("Meja 2", "SDN 05 Sukajadi"), "SDN 05 Sukajadi • Meja 2");

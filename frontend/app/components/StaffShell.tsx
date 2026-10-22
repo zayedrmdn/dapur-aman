@@ -36,7 +36,7 @@ export function TechnicalDetails({ items, className = "" }: { items: [string, st
   const shown = items.filter(([, value]) => value);
   if (!shown.length) return null;
   return <details className={`text-xs text-ink2 ${className}`}>
-    <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold">Detail teknis</summary>
+    <summary className="cursor-pointer py-3.5 font-semibold">Detail teknis</summary>
     <dl className="mt-1 grid gap-1">{shown.map(([label, value]) => <div key={label} className="min-w-0"><dt className="inline">{label}: </dt><dd className="inline break-all font-mono">{value}</dd></div>)}</dl>
   </details>;
 }

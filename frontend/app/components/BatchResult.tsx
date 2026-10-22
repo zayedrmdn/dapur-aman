@@ -2,7 +2,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Button from "@mui/material/Button";
 import { api, time, type Batch, type Event, type Finding } from "@/lib/contracts";
-import { agentLabel, backendLabel, batchHeading, concernLabel, eventStatusLabel, runErrorLabel } from "@/lib/labels";
+import { activitySummary, agentLabel, backendLabel, batchHeading, concernLabel, eventStatusLabel, runErrorLabel } from "@/lib/labels";
 import MarkedPhoto from "./MarkedPhoto";
 import HoldingTimer from "./HoldingTimer";
 import { ErrorMessage, inputClass, TechnicalDetails } from "./StaffShell";
@@ -139,7 +139,12 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
     {run && <details className="border-t border-rule px-4 py-4" open>
       <summary className="cursor-pointer font-bold">Aktivitas AI tersimpan</summary>
       <TechnicalDetails className="mt-1" items={[["Penyedia model", `${run.provider} / ${run.model}`], ["ID inspeksi", run.id]]} />
-      {trace?.runId !== run.id ? <p role="status" className="mt-2 text-sm">Memuat rekaman...</p> : trace.error ? <p className="mt-2 text-sm">{trace.error}</p> : !trace.events.length ? <p className="mt-2 text-sm">Tidak ada rekaman aktivitas untuk inspeksi ini.</p> : <ol className="mt-3 divide-y divide-rule">{trace.events.map(event => <li key={event.sequence} className="py-3 text-sm"><b>{event.sequence}. {agentLabel(event.agent)}</b>{event.step.toLowerCase() !== event.agent.toLowerCase() && (event.kind === "tool_call" ? <> - <code className="break-all font-mono text-xs">{event.step}</code></> : <> - {agentLabel(event.step)}</>)}<p className="text-xs text-ink2">{time(event.timestamp)} - {eventStatusLabel(event.status)}</p><p className="mt-1 break-words">{event.summary}</p>{event.error && <p className="text-safety-ink">{event.error}</p>}{event.references.length > 0 && <p className="mt-1 break-words text-xs text-ink2">Rujukan: {event.references.join(", ")}</p>}</li>)}</ol>}
+      {trace?.runId !== run.id ? <p role="status" className="mt-2 text-sm">Memuat rekaman...</p> : trace.error ? <p className="mt-2 text-sm">{trace.error}</p> : !trace.events.length ? <p className="mt-2 text-sm">Tidak ada rekaman aktivitas untuk inspeksi ini.</p> : <ol className="mt-3 divide-y divide-rule">{trace.events.map(event => {
+        const summary = activitySummary(event.summary);
+        const isTool = event.kind === "tool_call";
+        return <li key={event.sequence} className="py-3 text-sm"><b>{event.sequence}. {agentLabel(event.agent)}</b>{isTool ? " · alat pemeriksaan" : event.step.toLowerCase() !== event.agent.toLowerCase() && <> · {agentLabel(event.step)}</>}<p className="text-xs text-ink2">{time(event.timestamp)} · {eventStatusLabel(event.status)}</p><p className="mt-1 break-words">{summary}</p>
+          {(isTool || event.error || event.references.length > 0) && <TechnicalDetails items={[["Alat", isTool ? event.step : null], ["Ringkasan asli", summary !== event.summary ? event.summary : null], ["Galat", event.error], ["Rujukan", event.references.join(", ")]]} />}</li>;
+      })}</ol>}
     </details>}
     {batch.actions.length > 0 && <details className="border-t border-rule px-4 py-4"><summary className="cursor-pointer font-bold">Riwayat tindakan manusia</summary><ul className="mt-2 divide-y divide-rule">{batch.actions.map(action => <li key={action.id} className="py-3 text-sm"><b>{action.actor_name}</b> - {backendLabel(action.action)}<p>{action.reason}</p><time className="text-xs text-ink2">{time(action.created_at)}</time></li>)}</ul></details>}
   </section>;

@@ -150,6 +150,35 @@ export function agentLabel(value: string | null | undefined): string {
   return humanise(value);
 }
 
+const ACTIVITY_PATTERNS: [RegExp, (m: RegExpExecArray) => string][] = [
+  [/^(\w+) agent started\.$/i, m => `${agentLabel(m[1])} mulai bekerja.`],
+  [/^(\w+) agent finished\.$/i, m => `${agentLabel(m[1])} selesai.`],
+  [/^(\w+) agent stopped with an error\.$/i, m => `${agentLabel(m[1])} berhenti karena galat.`],
+  [/^\w+ raised an error\.$/i, () => "Alat pemeriksaan mengalami galat."],
+  [/^The model call failed\.$/i, () => "Panggilan model gagal."],
+  [/^The (\w+) reply did not match the expected format; asked once more\.$/i, m => `Balasan ${agentLabel(m[1])} tidak sesuai format; diminta ulang sekali.`],
+  [/^Simulated result\. No agent, tool or model ran\.$/i, () => "Hasil simulasi. Tidak ada agen, alat, atau model yang berjalan."],
+  [/^Vision reported (\d+) observation\(s\)\.$/i, m => `Vision melaporkan ${m[1]} pengamatan.`],
+  [/^Compliance assessed (\d+) observation\(s\)\.$/i, m => `Kepatuhan menilai ${m[1]} pengamatan.`],
+  [/^(\d+) matching rule\(s\)\.$/i, m => `${m[1]} aturan cocok.`],
+  [/^(\d+) evidence gap\(s\)\.$/i, m => `${m[1]} kekurangan bukti.`],
+  [/^(\d+) earlier finding\(s\) in this batch\.$/i, m => `${m[1]} temuan sebelumnya di batch ini.`],
+];
+
+/** Known backend activity summaries to Bahasa; "tool(args): text" loses the raw call. Unknown text is returned unchanged. */
+export function activitySummary(value: string | null | undefined): string {
+  if (!value) return "";
+  const text = value.trim();
+  if (/^\w+\(.*\) finished\.$/.test(text)) return "Alat pemeriksaan selesai.";
+  const call = /^\w+\(.*?\): ([\s\S]+)$/.exec(text);
+  const message = call ? call[1] : text;
+  for (const [pattern, translate] of ACTIVITY_PATTERNS) {
+    const m = pattern.exec(message);
+    if (m) return translate(m);
+  }
+  return text;
+}
+
 const EVENT_STATUS: Record<string, string> = {
   started: "Dimulai",
   completed: "Selesai",
