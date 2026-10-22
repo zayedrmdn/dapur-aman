@@ -45,7 +45,7 @@ test("isolated HTTP journey: login, three agents, action, retake, failure and lo
   const header = login.headers.get("set-cookie");
   assert.match(header, /HttpOnly/i); assert.match(header, /Secure/i); assert.match(header, /SameSite=strict/i);
   const cookie = header.split(";")[0];
-  assert.equal((await staffApi(request("supervisor/dashboard", cookie), "supervisor/dashboard")).status, 404);
+  assert.equal((await staffApi(request("supervisor/dashboard", cookie), "supervisor/dashboard")).status, 403);
   const inspection = await staffApi(request("inspect", cookie, photo()), "inspect");
   const result = await inspection.json();
   assert.equal(inspection.status, 200, JSON.stringify(result)); assert.equal(result.status, "review_required");
@@ -95,6 +95,7 @@ test("supervisor feed, hold, lift hold and close keep role checks", async () => 
   assert.equal(denied.status, 403); assert.match((await denied.json()).detail, /supervisor/i);
   const feedResponse = await staffApi(request("supervisor/feed", supervisor), "supervisor/feed");
   assert.equal(feedResponse.status, 200);
+  assert.equal((await staffApi(request("supervisor/dashboard", supervisor), "supervisor/dashboard")).status, 200);
   const feed = await feedResponse.json();
   assert.ok(feed.safety_feed.some(item => item.batch_id === batch && item.status === "open"));
   assert.ok(feed.batches.some(item => item.batch_id === batch));
@@ -106,10 +107,14 @@ test("supervisor feed, hold, lift hold and close keep role checks", async () => 
   assert.equal((await (await staffApi(request(batchPath, staff), batchPath)).json()).status, "on_hold");
   assert.equal((await act(staff, { batch_id: batch, action: "lift_hold", reason: "Staff try" })).status, 403);
   assert.equal((await act(supervisor, { batch_id: batch, action: "lift_hold", reason: "Tray checked" })).status, 200);
+  const dispatchPath = `notifications/dispatch-report/${batch}`;
+  assert.equal((await staffApi(request(dispatchPath, supervisor, {}), dispatchPath)).status, 409);
   assert.equal((await act(staff, { batch_id: batch, action: "close", reason: "Too early" })).status, 400);
   assert.equal((await act(staff, { batch_id: batch, finding_id: result.findings[0].id, action: "dismissed", reason: "Synthetic false alarm" })).status, 200);
   assert.equal((await act(staff, { batch_id: batch, action: "close", reason: "All findings handled" })).status, 200);
   assert.equal((await (await staffApi(request(batchPath, supervisor), batchPath)).json()).status, "closed");
+  assert.equal((await staffApi(request(dispatchPath, staff, {}), dispatchPath)).status, 403);
+  assert.equal((await staffApi(request(dispatchPath, supervisor, {}), dispatchPath)).status, 200);
 });
 test("backend auth refusals map to clear statuses", async () => {
   const { signSession } = require("../lib/session.ts");
