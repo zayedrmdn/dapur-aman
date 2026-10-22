@@ -7,7 +7,7 @@ import MarkedPhoto from "./MarkedPhoto";
 import HoldingTimer from "./HoldingTimer";
 import { ErrorMessage, inputClass } from "./StaffShell";
 
-function FindingItem({ finding, index, batchId, refreshed }: { finding: Finding; index: number; batchId: string; refreshed: () => Promise<void> }) {
+function FindingItem({ finding, index, batchId, canFix, refreshed }: { finding: Finding; index: number; batchId: string; canFix: boolean; refreshed: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -32,10 +32,10 @@ function FindingItem({ finding, index, batchId, refreshed }: { finding: Finding;
     {finding.resolution_text && <p className="mt-3 rounded-xl border border-brand bg-mint p-3 text-sm">{finding.resolution_text}</p>}
     {saved && <p role="status" className="mt-2 text-sm text-brand">Tindakan tersimpan.</p>}
     {finding.state === "open" && !saved && <form onSubmit={act} className="mt-4 flex flex-col gap-3" aria-busy={busy}>
-      <label className="text-sm font-medium">Tindakan untuk temuan {index + 1}<select name="action" className={`mt-1 ${inputClass}`} disabled={busy}><option value="fixed">Sudah diperbaiki</option><option value="dismissed">Abaikan dengan alasan</option></select></label>
+      <label className="text-sm font-medium">Tindakan untuk temuan {index + 1}<select name="action" defaultValue={canFix ? "fixed" : "dismissed"} className={`mt-1 ${inputClass}`} disabled={busy}><option value="fixed" disabled={!canFix}>Sudah diperbaiki{canFix ? "" : " (perlu foto ulang)"}</option><option value="dismissed">Abaikan dengan alasan</option></select></label>
       <label className="text-sm font-medium">Alasan atau perbaikan<textarea name="reason" required minLength={3} maxLength={2000} rows={2} className={`mt-1 ${inputClass}`} disabled={busy} /></label>
       <Button type="submit" variant="outlined" disabled={busy}>{busy ? "Menyimpan..." : "Simpan tindakan"}</Button>
-      <p className="text-xs text-ink2">Setelah perbaikan, ambil foto ulang. Agen tidak menutup temuan secara otomatis.</p>
+      <p className="text-xs text-ink2">{canFix ? "Foto ulang sudah diperiksa. Pastikan perbaikannya terlihat sebelum menandai diperbaiki." : "Perbaiki porsi, lalu ambil foto ulang. Temuan dapat ditandai diperbaiki setelah foto ulang selesai diperiksa."} Agen tidak menutup temuan secara otomatis.</p>
     </form>}
     {error && <ErrorMessage>{error}</ErrorMessage>}
   </li>;
@@ -91,6 +91,10 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
     return () => { active = false; };
   }, [runId]);
   const findings = run ? batch.findings.filter(finding => finding.run_id === run.id) : [];
+  function hasRetake(finding: Finding) {
+    const findingRun = runs.find(item => item.id === finding.run_id);
+    return !!findingRun && runs.some(item => item.state === "completed" && item.created_at > findingRun.created_at);
+  }
   const openFindings = batch.findings.filter(finding => finding.state === "open");
   const latestRun = runs[0];
   const canClose = batch.status === "in_review" && openFindings.length === 0 && latestRun?.state === "completed" && latestRun.outcome !== "retake_required";
@@ -127,7 +131,7 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
     </div>
     {run && <MarkedPhoto key={run.id} url={run.photo_url} findings={findings} refresh={() => { void refresh(); }} />}
     <h2 className="px-4 pt-5 text-lg font-extrabold">Temuan pada foto terpilih</h2>
-    {findings.length ? <ol>{findings.map((finding, index) => <FindingItem key={finding.id} finding={finding} index={index} batchId={batch.batch_id} refreshed={refresh} />)}</ol> : <p className="p-4 text-sm text-ink2">Tidak ada temuan tersimpan pada foto ini. Periksa status dan ketidakpastian di atas.</p>}
+    {findings.length ? <ol>{findings.map((finding, index) => <FindingItem key={finding.id} finding={finding} index={index} batchId={batch.batch_id} canFix={hasRetake(finding)} refreshed={refresh} />)}</ol> : <p className="p-4 text-sm text-ink2">Tidak ada temuan tersimpan pada foto ini. Periksa status dan ketidakpastian di atas.</p>}
     {run && <details className="border-t border-rule px-4 py-4" open>
       <summary className="cursor-pointer font-bold">Aktivitas AI tersimpan</summary>
       <p className="mt-2 break-words text-xs text-ink2">{run.provider} / {run.model} - {run.id}</p>
