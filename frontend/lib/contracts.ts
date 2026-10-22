@@ -9,7 +9,7 @@ export type Finding = {
 export type Run = {
   id: string; state: string; outcome: string; headline: string; provider: string; model: string;
   created_at: string; photo_id: string | null; photo_url: string | null; uncertainty: string[];
-  error: { code?: string; message?: string; retryable?: boolean } | null;
+  error: { code?: string; stage?: string; message?: string; retryable?: boolean } | null;
 };
 export type Batch = {
   batch_id: string; table_name: string; menu_name?: string | null; status: string; photo_url: string | null; created_at: string;

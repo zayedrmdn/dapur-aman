@@ -162,7 +162,8 @@ const RUN_ERROR: Record<string, string> = {
 };
 
 /** Bahasa message for a failed run; the technical detail stays separate. */
-export function runErrorLabel(code: string | null | undefined): string {
-  const base = (code && RUN_ERROR[code.toLowerCase()]) || "Inspeksi tidak selesai.";
+export function runErrorLabel(error: { code?: string; stage?: string } | null | undefined): string {
+  const stage = error?.stage?.toLowerCase() ?? "";
+  const base = RUN_ERROR[stage] ?? "Inspeksi tidak selesai.";
   return `${base} Coba lagi atau ambil foto ulang.`;
 }
