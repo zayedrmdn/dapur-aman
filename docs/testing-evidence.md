@@ -70,10 +70,20 @@ Not exercised on production data: hold, release and close refusals (covered by b
 
 ## 4. Human oversight
 
-- The AI only proposes: concerns, rule match, uncertainty and one next step. It never marks food safe, resolves a finding, places or lifts a hold, or closes a batch.
-- Those actions go through the human action endpoint, which the agents never call (checked by `test_ai_never_closes_batch_or_resolves_findings`).
-- Holds and releases need a written reason from the supervisor. A finding marked fixed needs a retake photo.
-- A failed or invalid run is never shown as clean (`test_inspection_api.py`, S2, S5).
+The AI only proposes: concerns, rule match, uncertainty and one next step. Every decision below is made by a person, through the human action endpoint, which the agents never call.
+
+| Step | Who decides | What the system enforces | Verified by |
+| --- | --- | --- | --- |
+| 1. Read the AI result | Staff | AI never marks food safe, resolves a finding or closes a batch | `test_ai_never_closes_batch_or_resolves_findings` |
+| 2. Mark a finding fixed | Staff | Needs a newer completed retake photo | `test_fixed_requires_a_newer_completed_retake` |
+| 3. Dismiss a finding | Staff | Allowed without retake; recorded with the actor | `test_dismissed_does_not_need_a_retake` |
+| 4. Hold a batch | Supervisor only | Written reason required (blank or too short is rejected); original reason and history kept | `test_hold_actions_reject_blank_or_short_trimmed_reasons`, `test_repeated_hold_preserves_original_reason_and_history`, `test_staff_close_needs_handled_findings_and_no_hold_and_only_supervisor_holds` |
+| 5. Release a hold | Supervisor | Reason required; cannot reopen a closed batch | `test_release_cannot_reopen_closed_batch_or_add_history`; browser check S8 |
+| 6. Close the batch | Person | Blocked while held or with unhandled findings | `test_staff_close_needs_handled_findings_and_no_hold_and_only_supervisor_holds` |
+| 7. Send the school report | Supervisor close only | Staff close sends nothing | `test_only_supervisor_close_sends_clearance_letter` |
+| — Failed AI run | Person retakes | Never shown as clean; no outcome | `test_inspection_api.py`; real runs S2, S5 and the missing-item timeouts above |
+
+All tests above pass in the 92-test backend run (section 1). Hold → release was also checked in a browser (S8); on production only read-only checks ran.
 
 ## 5. Known failures and limitations
 
