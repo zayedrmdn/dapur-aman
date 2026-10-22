@@ -194,7 +194,7 @@ export default function SupervisorDashboardPage() {
       {/* 1. TOP HEADER */}
       <header className="sticky top-0 z-30 border-b border-brand-dark bg-brand text-white">
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="flex items-center gap-3">
             <span className="grid size-10 place-items-center rounded-xl bg-white/15 text-xl font-black tracking-tight text-white">
               DA
             </span>
@@ -206,7 +206,7 @@ export default function SupervisorDashboardPage() {
                 {data?.kitchen_name || "Memuat data dapur..."} • Dasbor supervisor
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Quick Nav & Actor */}
           <div className="flex flex-wrap items-center gap-2 text-xs sm:gap-3">
@@ -223,7 +223,7 @@ export default function SupervisorDashboardPage() {
               href="/staff"
               className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 font-bold text-white transition hover:bg-white/20"
             >
-              Meja packing (staf)
+              Layar staf
             </Link>
 
             <button
@@ -470,7 +470,7 @@ export default function SupervisorDashboardPage() {
                           component={Link}
                           href={`/staff-review?batch=${encodeURIComponent(data.active_concern.batch_id)}`}
                         >
-                          Buka detail baki dan tindakan staf
+                          Buka detail batch
                         </Button>
                       </div>
                       {holdForm(data.active_concern.batch_id, true)}
@@ -693,7 +693,7 @@ export default function SupervisorDashboardPage() {
                               href={`/staff-review?batch=${encodeURIComponent(b.batch_id)}`}
                               className="text-[11px] font-bold"
                             >
-                              Periksa baki
+                              Buka detail
                             </Button>
                           </div>
                         </div>
