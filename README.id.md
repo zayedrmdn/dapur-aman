@@ -18,9 +18,18 @@ Demo langsung: https://dapur-aman.vercel.app (lihat [Deployment](#deployment) un
 
 Panduan 64 detik penggunaan aplikasi di ponsel. Klik pratinjau untuk memutar (WebM, 5,2 MB, tanpa suara). [Tonton video demo](docs/media/demo-video.webm).
 
+## Akses untuk penilai
+
+1. Buka https://dapur-aman.vercel.app/login di ponsel (atau browser desktop selebar ponsel).
+2. Masuk dengan akun penilai yang diberikan di formulir pengumpulan. Kata sandinya tidak ada di repositori ini.
+3. Akun supervisor membuka `/dashboard`; akun staf membuka `/staff`.
+
+Backend berjalan di laptop tim melalui tunnel Cloudflare (lihat [Deployment](#deployment)), sehingga aplikasi live hanya berfungsi selama tim menjalankannya saat penilaian. Data demo bersifat sintetis. Untuk menjalankannya sendiri, lihat [Menjalankan secara lokal](#menjalankan-secara-lokal).
+
 ## Daftar isi
 
 - [Video Demo](#video-demo)
+- [Akses untuk penilai](#akses-untuk-penilai)
 - [Ringkasan](#ringkasan)
 - [Fitur](#fitur)
 - [Arsitektur](#arsitektur)
@@ -39,6 +48,8 @@ Panduan 64 detik penggunaan aplikasi di ponsel. Klik pratinjau untuk memutar (We
 - [Pemecahan masalah](#pemecahan-masalah)
 - [Struktur proyek](#struktur-proyek)
 - [Tim](#tim)
+- [Sumber dan lisensi](#sumber-dan-lisensi)
+- [Penggunaan alat AI](#penggunaan-alat-ai)
 
 ## Ringkasan
 
@@ -649,6 +660,8 @@ Ingat bahwa backend mengubah skema database di `DATABASE_URL` saat mulai (lihat 
 
 ## Pengujian
 
+Bukti pengujian per skenario (run model nyata, pemeriksaan live, hasil dan kegagalan): [docs/testing-evidence.md](docs/testing-evidence.md).
+
 Tidak ada tes otomatis yang memanggil model berbayar, Neon, object storage, atau Telegram.
 
 **Backend** (dari `backend/`; memakai SQLite in-memory dan balasan model yang sudah diskenariokan):
@@ -781,9 +794,36 @@ dapur-aman/
 | Finiko | Hipster             | Merancang pengalaman pengguna: antarmuka dan front end |
 | Rohmat | Hacker              | Membangun produk: kode, AI, dan back end               |
 
+Kontribusi:
+
+- **Rabab:** strategi produk, riset, skenario uji, demo, dan pitch.
+- **Zayed:** penyiapan proyek; agen Orchestrator dan Compliance; integrasi alur kerja AI; database, penyimpanan, dan deployment; perbaikan bug di seluruh sistem; README ini.
+- **Rohmat:** agen Vision; aplikasi FastAPI, operasi database, penyimpanan foto, autentikasi backend, dan aksi manusia.
+- **Finiko:** seluruh frontend: antarmuka, server route Next.js, sesi, dan proxy backend.
+
+## Sumber dan lisensi
+
+| Jenis | Yang dipakai |
+| --- | --- |
+| Model | Gemini di Vertex AI (ID model diatur di `AI_MODEL`); OpenRouter melalui LiteLLM sebagai alternatif manual |
+| Kerangka agen | Google ADK 2.12 (Apache-2.0), google-genai (Apache-2.0) |
+| API dan layanan | Vertex AI, Neon Postgres dan object storage, Telegram Bot API, Vercel, Cloudflare Quick Tunnel |
+| Pustaka backend | FastAPI (MIT), SQLAlchemy (MIT), psycopg 3 (LGPL-3.0), Pydantic (MIT), uvicorn (BSD-3-Clause), boto3 (Apache-2.0), Pillow (MIT-CMU), bcrypt (Apache-2.0), LiteLLM (MIT), httpx (BSD-3-Clause) |
+| Pustaka frontend | Next.js (MIT), React (MIT), MUI (MIT), Tailwind CSS (MIT), d3 (ISC), TypeScript (Apache-2.0) |
+| Dataset | Tidak ada. Foto uji dibuat sendiri oleh tim dan diberi label data uji |
+| Tabel aturan | Disusun tim untuk demo. Setiap aturan adalah asumsi demo sampai ditautkan ke sumber resmi (`backend/agents/compliance/rules.py`) |
+| Komponen terdahulu | Tidak ada. Seluruh kode ditulis selama acara |
+
+Versi dikunci di `backend/uv.lock` dan `frontend/bun.lock`.
+
 ## Penggunaan alat AI
 
-> **Menunggu konfirmasi tim.** Aturan acara mengizinkan AI coding assistant dan model generatif. Tim belum menyelesaikan pengungkapan tentang alat yang dipakai dan bagian yang dibantunya. Bagian ini akan mencantumkannya setelah tim mengonfirmasi; sampai saat itu, bagian ini belum merupakan pengungkapan yang lengkap.
+Tim memakai asisten AI sebagai alat bantu pengembangan, sesuai aturan acara:
+
+- **Pemrograman:** Claude Code dan Codex CLI (backend, agen, integrasi, dokumentasi); Antigravity (frontend).
+- **Riset dan persiapan pitch:** ChatGPT, untuk membantu mengumpulkan sumber latar belakang, informasi pesaing, dan bahan pitch deck.
+
+Tim meninjau setiap perubahan yang dibantu AI dan memeriksanya dengan tes otomatis (pytest dan tes frontend) serta uji end-to-end aplikasi. Tim bertanggung jawab atas seluruh materi yang diajukan dan mampu menjelaskannya.
 
 Produk ini sendiri memakai agen Google ADK dengan Gemini di Vertex AI, seperti dijelaskan di [Agen AI](#agen-ai).
 

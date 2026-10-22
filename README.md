@@ -18,9 +18,18 @@ Live demo: https://dapur-aman.vercel.app (see [Deployment](#deployment) for how 
 
 A 64-second walkthrough of the app on a phone. Click the preview to play (WebM, 5.2 MB, no audio). [Watch the demo video](docs/media/demo-video.webm).
 
+## Access for judges
+
+1. Open https://dapur-aman.vercel.app/login on a phone (or a desktop browser at phone width).
+2. Sign in with the judge account given in the submission form. The password is not in this repository.
+3. Supervisor accounts open `/dashboard`; staff accounts open `/staff`.
+
+The backend runs on a team laptop behind a Cloudflare tunnel (see [Deployment](#deployment)), so the live app works only while the team keeps it running during judging. Demo data is synthetic. To run it yourself, see [Run locally](#run-locally).
+
 ## Contents
 
 - [Demo Video](#demo-video)
+- [Access for judges](#access-for-judges)
 - [Overview](#overview)
 - [Features](#features)
 - [Architecture](#architecture)
@@ -39,6 +48,8 @@ A 64-second walkthrough of the app on a phone. Click the preview to play (WebM, 
 - [Troubleshooting](#troubleshooting)
 - [Project structure](#project-structure)
 - [Team](#team)
+- [Sources and licenses](#sources-and-licenses)
+- [Use of AI tools](#use-of-ai-tools)
 
 ## Overview
 
@@ -649,6 +660,8 @@ Remember that the backend changes the schema of the database in `DATABASE_URL` o
 
 ## Testing
 
+Scenario-level evidence (real model runs, live checks, results and failures): [docs/testing-evidence.md](docs/testing-evidence.md).
+
 None of the automated tests call a paid model, Neon, object storage or Telegram.
 
 **Backend** (from `backend/`; uses in-memory SQLite and scripted model replies):
@@ -781,9 +794,36 @@ dapur-aman/
 | Finiko | Hipster             | Designs the user experience: interface and front end   |
 | Rohmat | Hacker              | Builds the product: code, AI and back end              |
 
+Contributions:
+
+- **Rabab:** product strategy, research, test scenarios, demo and pitch.
+- **Zayed:** project setup; Orchestrator and Compliance agents; AI workflow integration; database, storage and deployment; bug fixes across the stack; this README.
+- **Rohmat:** Vision agent; FastAPI application, database operations, photo storage, backend auth and human actions.
+- **Finiko:** the whole frontend: interface, Next.js server routes, sessions and the backend proxy.
+
+## Sources and licenses
+
+| Type | Used |
+| --- | --- |
+| Model | Gemini on Vertex AI (model ID set in `AI_MODEL`); OpenRouter through LiteLLM as a manual alternative |
+| Agent framework | Google ADK 2.12 (Apache-2.0), google-genai (Apache-2.0) |
+| APIs and services | Vertex AI, Neon Postgres and object storage, Telegram Bot API, Vercel, Cloudflare Quick Tunnel |
+| Backend libraries | FastAPI (MIT), SQLAlchemy (MIT), psycopg 3 (LGPL-3.0), Pydantic (MIT), uvicorn (BSD-3-Clause), boto3 (Apache-2.0), Pillow (MIT-CMU), bcrypt (Apache-2.0), LiteLLM (MIT), httpx (BSD-3-Clause) |
+| Frontend libraries | Next.js (MIT), React (MIT), MUI (MIT), Tailwind CSS (MIT), d3 (ISC), TypeScript (Apache-2.0) |
+| Datasets | None. Test photos were staged by the team and are labelled as test data |
+| Rule table | Written by the team for the demo. Each rule is a demo assumption until linked to an official source (`backend/agents/compliance/rules.py`) |
+| Earlier components | None. All code was written during the event |
+
+Versions are pinned in `backend/uv.lock` and `frontend/bun.lock`.
+
 ## Use of AI tools
 
-> **Pending team confirmation.** The event rules allow AI coding assistants and generative models. The team has not yet finalised its disclosure of which tools were used and for which parts. This section will list them once the team confirms; until then it is not a complete disclosure.
+The team used AI assistants as development aids, as the event rules allow:
+
+- **Coding:** Claude Code and Codex CLI (backend, agents, integration, documentation); Antigravity (frontend).
+- **Research and pitch preparation:** ChatGPT, to help gather background sources, competitor information and material for the pitch deck.
+
+The team reviewed every AI-assisted change and checked it with the automated tests (pytest and the frontend tests) and with end-to-end runs of the app. The team is responsible for all submitted material and can explain it.
 
 The product itself uses Google ADK agents with Gemini on Vertex AI, as described in [AI agents](#ai-agents).
 
