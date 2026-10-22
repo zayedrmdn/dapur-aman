@@ -2,7 +2,7 @@
 
 Supports:
 1. Instant Safety Alerts to Kitchen Supervisors when contaminants or critical concerns are detected.
-2. Official School Dispatch Clearance Reports (Surat Kelayakan Distribusi MBG) to School Principals & Coordinators.
+2. Batch inspection reports (Laporan Pemeriksaan Batch) to school contacts after a supervisor closes a batch.
 """
 
 import html
@@ -128,7 +128,7 @@ async def send_supervisor_safety_alert(
         "📋 <b>INSTRUKSI SUPERVISOR:</b>\n"
         "1. Segera tahan proses packing pada meja ini.\n"
         "2. Instruksikan staf untuk memperbaiki/mengganti porsi terdampak.\n"
-        "3. Lakukan foto ulang (retake) untuk verifikasi kelayakan sebelum disegel.\n"
+        "3. Lakukan foto ulang (retake) untuk pemeriksaan ulang sebelum disegel.\n"
     )
 
     if photo_url:
@@ -152,7 +152,7 @@ async def send_school_clearance_report(
     photo_url: str | None = None,
     chat_id: str | None = None,
 ) -> dict:
-    """Format and send official dispatch clearance certificate to school principal & BGN coordinator."""
+    """Format and send the batch inspection report to the school contact."""
     target_chat = chat_id or TELEGRAM_SCHOOL_CHAT_ID or TELEGRAM_SUPERVISOR_CHAT_ID
 
     now_wib = datetime.now(WIB)
@@ -168,7 +168,7 @@ async def send_school_clearance_report(
     recipient_block = "\n".join(recipient_lines)
 
     message = (
-        "✅ <b>SURAT KELAYAKAN DISTRIBUSI PANGAN MBG</b>\n"
+        "📋 <b>Laporan Pemeriksaan Batch</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "Kepada Yth:\n"
         "<b>Tim Pengawas & Satgas MBG Sekolah</b>\n"
@@ -176,13 +176,13 @@ async def send_school_clearance_report(
         f"📦 <b>ID Batch:</b> <code>{html.escape(batch_id)}</code>\n"
         f"🍽️ <b>Menu Hari Ini:</b> {html.escape(menu_name)}\n"
         f"🍱 <b>Alokasi Porsi:</b> {total_trays} Baki Siswa\n"
-        f"🕒 <b>Waktu Verifikasi:</b> {current_wib_str()}\n"
+        f"🕒 <b>Waktu Laporan:</b> {current_wib_str()}\n"
         f"🚚 <b>Status Pengiriman:</b> Batch ditutup oleh supervisor <b>{html.escape(supervisor_name)}</b> setelah pemeriksaan manusia.\n\n"
         "🛡️ <b>CATATAN PEMERIKSAAN DAPUR AMAN:</b>\n"
         "• Vision Agent tidak melihat masalah yang tersisa pada foto terakhir.\n"
         "• Semua temuan sudah ditangani dan dicatat oleh manusia.\n"
         "• Foto hanya membantu melihat kemungkinan masalah. Hasil foto bukan jaminan keamanan pangan.\n\n"
-        f"⏱️ <b>BATAS AMAN KONSUMSI (HOLDING TIME):</b>\n"
+        f"⏱️ <b>BATAS WAKTU SIMPAN (HOLDING TIME):</b>\n"
         f"Maksimal pukul <b>{limit_time}</b> (asumsi demo: maksimal 4 jam sejak selesai pengolahan, belum diverifikasi).\n"
     )
 

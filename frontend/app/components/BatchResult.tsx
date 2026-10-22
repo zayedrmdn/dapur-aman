@@ -74,7 +74,7 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
     setDispatchNotice("");
     try {
       await api(`notifications/dispatch-report/${encodeURIComponent(batch.batch_id)}`, {});
-      setDispatchNotice("Surat terkirim ke Telegram sekolah.");
+      setDispatchNotice("Laporan terkirim ke Telegram sekolah.");
     } catch (err) {
       setDispatchNotice(err instanceof Error ? err.message : "Gagal mengirim ke Telegram.");
     } finally {
@@ -108,10 +108,10 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
         <p className="mt-1 text-xs text-ink2">Semua temuan sudah ditangani. Foto hanya membantu melihat kemungkinan masalah; hasil foto bukan jaminan keamanan pangan.</p>
         {isSupervisor ? <div className="mt-2 flex flex-wrap items-center gap-2">
           <Button variant="contained" disabled={sendingDispatch} onClick={sendDispatchReport}>
-            {sendingDispatch ? "Mengirim..." : "Kirim surat ke Telegram sekolah"}
+            {sendingDispatch ? "Mengirim..." : "Kirim laporan ke Telegram sekolah"}
           </Button>
           {dispatchNotice && <span className="text-xs font-bold text-brand">{dispatchNotice}</span>}
-        </div> : <p className="mt-2 text-xs font-semibold">Supervisor yang mengirim surat ke sekolah dari dasbor supervisor.</p>}
+        </div> : <p className="mt-2 text-xs font-semibold">Supervisor yang mengirim laporan ke sekolah dari dasbor supervisor.</p>}
       </div>}
       {canClose && <div className="rounded-xl border border-brand bg-mint p-3 text-sm text-brand-dark">
         <p className="font-bold">Tidak ada temuan terbuka</p>

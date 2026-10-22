@@ -141,7 +141,7 @@ export default function SupervisorDashboardPage() {
     setActionNotice("");
     try {
       await api(`notifications/dispatch-report/${encodeURIComponent(batchId)}`, {});
-      setActionNotice(`Surat untuk ${batchId} terkirim ke Telegram sekolah.`);
+      setActionNotice(`Laporan untuk ${batchId} terkirim ke Telegram sekolah.`);
       await loadDashboard();
     } catch (err) {
       setActionNotice(err instanceof Error ? err.message : "Gagal mengirim notifikasi Telegram.");
@@ -311,7 +311,7 @@ export default function SupervisorDashboardPage() {
                 <p className="mt-1 text-[11px] text-ink2">Meja packing tercatat</p>
               </div>
 
-              {/* Card 2: Tingkat Kelaikan */}
+              {/* Card 2: Batch ditutup */}
               <div className="rounded-2xl border border-rule bg-paper p-4">
                 <div className="text-xs font-bold text-ink2">Batch ditutup</div>
                 <div className="mt-2 flex items-baseline gap-1.5">
@@ -682,7 +682,7 @@ export default function SupervisorDashboardPage() {
                                 onClick={() => handleSendTelegram(b.batch_id)}
                                 className="text-[11px] font-bold"
                               >
-                                Kirim surat Telegram
+                                Kirim laporan Telegram
                               </Button>
                             )}
 
@@ -709,7 +709,7 @@ export default function SupervisorDashboardPage() {
             <section className="rounded-2xl border border-rule bg-paper p-4">
               <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div>
-                  <span className="font-extrabold text-ink">Batas aman makanan siap saji (HACCP):</span>{" "}
+                  <span className="font-extrabold text-ink">Batas waktu simpan makanan siap saji:</span>{" "}
                   <span className="text-ink2">Maksimal 4 jam dari selesainya pengolahan (asumsi demo, belum diverifikasi).</span>
                 </div>
                 <div className="font-bold text-ink2">

@@ -964,7 +964,7 @@ async def record_human_action(
                 chat_id=school_chat,
             )
         except Exception as notify_err:
-            logger.warning("Gagal mengirim notifikasi surat kelaikan sekolah: %s", notify_err)
+            logger.warning("Gagal mengirim laporan pemeriksaan batch ke sekolah: %s", notify_err)
 
     return ActionResponse(
         success=True,
@@ -1073,14 +1073,14 @@ async def trigger_dispatch_report(
     _: None = Depends(verify_shared_secret),
     actor: User = Depends(get_current_actor),
 ) -> dict:
-    """Kirim Surat Kelayakan Distribusi MBG ke Telegram Kepala Sekolah / Tim Pengawas."""
+    """Kirim Laporan Pemeriksaan Batch ke Telegram kontak sekolah."""
     if actor.role != "supervisor":
-        raise HTTPException(status_code=403, detail="Hanya supervisor yang dapat mengirim surat kelayakan.")
+        raise HTTPException(status_code=403, detail="Hanya supervisor yang dapat mengirim laporan pemeriksaan batch.")
     batch = db.query(Batch).filter(Batch.id == batch_id).first()
     if not batch:
         raise HTTPException(status_code=404, detail=f"Batch '{batch_id}' tidak ditemukan.")
     if batch.status != "closed":
-        raise HTTPException(status_code=409, detail="Surat kelayakan hanya untuk batch yang sudah ditutup supervisor.")
+        raise HTTPException(status_code=409, detail="Laporan pemeriksaan hanya untuk batch yang sudah ditutup supervisor.")
 
     target_id = school_id or batch.target_school_id or "sch_01"
     school = db.query(SchoolRecipient).filter(SchoolRecipient.id == target_id).first()
