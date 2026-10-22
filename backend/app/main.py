@@ -517,6 +517,8 @@ def get_batch_overview(
                 summary_label=summary_label,
                 timestamp_str=time_str,
                 status=row_status,
+                batch_status=b.status,
+                hold_reason=b.hold_reason,
                 photo_url=photo_url,
                 has_check=completed,
                 school_name=b.target_school_name,
@@ -677,6 +679,7 @@ def get_supervisor_dashboard(
             batch_id=batch.id, menu_name=batch.menu_name, photos_count=len(batch.photos),
             subtitle=subtitle, status=state, badge_label=label, badge_color=color,
             table_name=batch.table_name, school_name=batch.target_school_name, created_at=batch.created_at,
+            hold_reason=batch.hold_reason,
         ))
 
     # Data alokasi sekolah & porsi
@@ -806,6 +809,7 @@ def get_batch_detail(
         menu_name=batch.menu_name,
         school_name=batch.target_school_name,
         status=batch.status,  # type: ignore
+        hold_reason=batch.hold_reason,
         photo_url=photo_url,
         created_at=batch.created_at,
         updated_at=batch.updated_at,
@@ -978,6 +982,9 @@ async def record_human_action(
 
     return ActionResponse(
         success=True,
+        batch_status=batch.status,
+        hold_reason=batch.hold_reason,
+        has_open_findings=any(f.status == "open" for f in batch.findings),
         action_id=action_id,
         batch_id=batch.id,
         finding_id=payload.finding_id,

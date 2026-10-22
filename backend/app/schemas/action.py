@@ -24,6 +24,9 @@ class ActionResponse(BaseModel):
     """Response returned after recording a human action."""
 
     success: bool
+    batch_status: Literal["in_review", "on_hold", "closed"]
+    hold_reason: str | None = None
+    has_open_findings: bool = False
     action_id: str
     batch_id: str
     finding_id: str | None = None

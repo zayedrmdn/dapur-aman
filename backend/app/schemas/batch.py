@@ -44,6 +44,7 @@ class BatchDetailSchema(BaseModel):
     menu_name: str | None = None
     school_name: str | None = None
     status: Literal["in_review", "on_hold", "closed"]
+    hold_reason: str | None = None
     photo_url: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -60,6 +61,8 @@ class PackingPhotoRowSchema(BaseModel):
     summary_label: str  # e.g. "No spots", "2 safety spots • 1 fixed, 1 dismissed • retaken"
     timestamp_str: str  # e.g. "07:58", "08:11"
     status: Literal["clean", "review_required", "retake_required"]
+    batch_status: Literal["in_review", "on_hold", "closed"] = "in_review"
+    hold_reason: str | None = None
     photo_url: str | None = None
     has_check: bool = True
     school_name: str | None = None

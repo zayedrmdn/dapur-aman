@@ -157,3 +157,28 @@ def test_release_cannot_reopen_closed_batch_or_add_history(api):
     db.expire_all()
     assert db.get(Batch, BATCH).status == "closed"
     assert db.query(HumanAction).count() == 0
+
+
+def test_hold_refresh_release_refresh_exposes_status_reason_and_history(api):
+    client, db = api
+    headers = {**SECRET, "X-Actor-Id": "supervisor"}
+    for action, reason, expected in [
+        ("on_hold", "Check before distributing", "on_hold"),
+        ("lift_hold", "Checked by supervisor", "in_review"),
+    ]:
+        response = client.post("/api/actions", headers=headers,
+                               json={"batch_id": BATCH, "action": action, "reason": reason})
+        assert response.status_code == 200
+        assert response.json()["batch_status"] == expected
+        assert response.json()["hold_reason"] == (reason if expected == "on_hold" else None)
+        db.expire_all()
+        detail = client.get(f"/api/batches/{BATCH}", headers=SECRET).json()
+        overview = client.get("/api/overview", headers=SECRET).json()["packing_photos"][0]
+        dashboard = client.get("/api/supervisor/dashboard", headers=headers).json()["batches"][0]
+        assert detail["status"] == overview["batch_status"] == expected
+        assert dashboard["status"] == ("on_hold" if expected == "on_hold" else "finding_open")
+        for item in [detail, overview, dashboard]:
+            assert item["hold_reason"] == (reason if expected == "on_hold" else None)
+        assert detail["actions"][-1]["action"] == action
+        assert detail["actions"][-1]["reason"] == reason
+    assert [item["action"] for item in detail["actions"]] == ["on_hold", "lift_hold"]

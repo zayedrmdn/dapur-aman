@@ -54,6 +54,7 @@ class BatchListItemSchema(BaseModel):
     status: Literal["closed", "packing", "finding_open", "on_hold"]
     badge_label: str = "Closed"  # "Closed", "Packing", "Finding open", "On hold"
     badge_color: str = "green"  # "green", "yellow", "red"
+    hold_reason: str | None = None
     table_name: str | None = None
     school_name: str | None = None
     created_at: datetime | None = None
