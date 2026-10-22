@@ -10,8 +10,15 @@ Dibuat oleh tim **Nexara Vision** untuk **Agentic AI Hackathon 2026**, bagian da
 
 Demo langsung: https://dapur-aman.vercel.app (lihat [Deployment](#deployment) untuk cara backend di-hosting).
 
+## Video Demo
+
+<a href="docs/media/demo-video.webm"><img src="docs/media/demo-video-preview.jpg" alt="Tonton video demo" width="240"></a>
+
+Panduan 64 detik penggunaan aplikasi di ponsel. Klik pratinjau untuk memutar (WebM, 5,2 MB, tanpa suara). [Tonton video demo](docs/media/demo-video.webm).
+
 ## Daftar isi
 
+- [Video Demo](#video-demo)
 - [Ringkasan](#ringkasan)
 - [Fitur](#fitur)
 - [Arsitektur](#arsitektur)

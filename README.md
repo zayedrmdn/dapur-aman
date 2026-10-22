@@ -10,8 +10,15 @@ Built by team **Nexara Vision** for the **Agentic AI Hackathon 2026**, part of I
 
 Live demo: https://dapur-aman.vercel.app (see [Deployment](#deployment) for how the backend is hosted).
 
+## Demo Video
+
+<a href="docs/media/demo-video.webm"><img src="docs/media/demo-video-preview.jpg" alt="Watch the demo video" width="240"></a>
+
+A 64-second walkthrough of the app on a phone. Click the preview to play (WebM, 5.2 MB, no audio). [Watch the demo video](docs/media/demo-video.webm).
+
 ## Contents
 
+- [Demo Video](#demo-video)
 - [Overview](#overview)
 - [Features](#features)
 - [Architecture](#architecture)
