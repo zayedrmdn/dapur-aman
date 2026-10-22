@@ -461,10 +461,10 @@ export default function SupervisorDashboardPage() {
             </span>
             <div className="min-w-0">
               <h2 className="text-base font-extrabold text-emerald-950">
-                Semua Meja Terverifikasi Aman &amp; Higienis
+                Tidak ada temuan keamanan terbuka
               </h2>
               <p className="mt-0.5 text-xs text-ink2">
-                Tidak ada temuan bahaya keamanan pangan terbuka saat ini. Seluruh batch yang berjalan memenuhi standar kelaikan BGN &amp; Permenkes No. 1096.
+                Tidak ada temuan keamanan terbuka saat ini. Hasil foto bukan jaminan keamanan pangan.
               </p>
             </div>
           </section>
@@ -501,7 +501,7 @@ export default function SupervisorDashboardPage() {
                       </div>
                       <Chip
                         size="small"
-                        label={isReady ? "100% SIAP" : isWorking ? "PACKING" : "STANDBY"}
+                        label={isReady ? "SIAP" : isWorking ? "PACKING" : "STANDBY"}
                         color={isReady ? "success" : isWorking ? "warning" : "default"}
                         className="font-bold text-[10px]"
                       />
@@ -705,7 +705,7 @@ export default function SupervisorDashboardPage() {
               <span className="text-base">⏱️</span>
               <div>
                 <span className="font-extrabold text-ink">Batas Aman Higienis Makanan Siap Saji (HACCP):</span>{" "}
-                <span className="text-ink2">Maksimal 4 jam dari selesainya pengolahan (Permenkes No. 1096/2011).</span>
+                <span className="text-ink2">Maksimal 4 jam dari selesainya pengolahan (asumsi demo, belum diverifikasi).</span>
               </div>
             </div>
             <div className="flex items-center gap-2 font-bold text-emerald-800">

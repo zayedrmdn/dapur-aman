@@ -177,22 +177,21 @@ async def send_school_clearance_report(
         f"🍽️ <b>Menu Hari Ini:</b> {html.escape(menu_name)}\n"
         f"🍱 <b>Alokasi Porsi:</b> {total_trays} Baki Siswa\n"
         f"🕒 <b>Waktu Verifikasi:</b> {current_wib_str()}\n"
-        "🚚 <b>Status Pengiriman:</b> <b>100% LOLOS & SIAP KONSUMSI</b>\n\n"
-        "🛡️ <b>HASIL AUDIT MULTI-AGENT AI (DAPUR AMAN):</b>\n"
-        "• <b>Vision Agent:</b> Nol cemaran fisik (terkonfirmasi bebas rambut, ulat, serangga, benda asing).\n"
-        "• <b>Compliance Agent:</b> Komposisi 4-komponen gizi seimbang (Karbo, Lauk Protein, Sayur, Buah) sesuai standar BGN & Permenkes No. 1096.\n"
-        f"• <b>Verifikasi Fisik:</b> Disetujui & ditandatangani oleh <b>{html.escape(supervisor_name)}</b>.\n\n"
+        f"🚚 <b>Status Pengiriman:</b> Batch ditutup oleh supervisor <b>{html.escape(supervisor_name)}</b> setelah pemeriksaan manusia.\n\n"
+        "🛡️ <b>CATATAN PEMERIKSAAN DAPUR AMAN:</b>\n"
+        "• Vision Agent tidak melihat masalah yang tersisa pada foto terakhir.\n"
+        "• Semua temuan sudah ditangani dan dicatat oleh manusia.\n"
+        "• Foto hanya membantu melihat kemungkinan masalah. Hasil foto bukan jaminan keamanan pangan.\n\n"
         f"⏱️ <b>BATAS AMAN KONSUMSI (HOLDING TIME):</b>\n"
-        f"Maksimal pukul <b>{limit_time}</b> (Batas higienis maksimal 4 jam sejak selesai pengolahan).\n"
+        f"Maksimal pukul <b>{limit_time}</b> (asumsi demo: maksimal 4 jam sejak selesai pengolahan, belum diverifikasi).\n"
     )
 
     if photo_url:
-        message += f"\n📸 <a href='{html.escape(photo_url)}'>Lihat Arsip Foto Baki Terverifikasi</a>\n"
+        message += f"\n📸 <a href='{html.escape(photo_url)}'>Lihat Arsip Foto Baki Terakhir</a>\n"
 
     message += (
         "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "<i>Dokumen digital resmi ini diterbitkan secara otomatis oleh Sistem AI Dapur Aman "
-        "demi transparansi dan perlindungan kesehatan anak bangsa.</i>"
+        "<i>Pesan demo Dapur Aman, dikirim atas keputusan supervisor. Data sekolah adalah data sintetis.</i>"
     )
 
     return await send_telegram_raw(message, target_chat, photo_url=photo_url)
@@ -222,15 +221,13 @@ async def send_supervisor_retake_notification(
     is_clean = len(findings) == 0
 
     if is_clean:
-        status_line = "✅ <b>STATUS: TERVERIFIKASI BERSIH (0 MASALAH)</b>"
+        status_line = "✅ <b>STATUS: TIDAK ADA MASALAH TERLIHAT PADA FOTO ULANG</b>"
         detail_line = (
             "Baki hasil periksa ulang (retake) telah diperiksa oleh Vision Agent.\n"
-            "• Temuan sebelumnya telah tuntas diperbaiki oleh staf.\n"
-            "• Baki kini dinyatakan <b>100% HIGIENIS & SESUAI STANDAR MBG</b>."
+            "• Foto hanya membantu melihat kemungkinan masalah. Hasil foto bukan jaminan keamanan pangan."
         )
         action_line = (
-            "👉 <b>Status Rilis:</b> Baki dinyatakan lolos 100%. "
-            "Surat Kelaikan Distribusi Pangan resmi telah diterbitkan dan langsung dikirimkan ke pihak sekolah penerima via Telegram."
+            "👉 <b>Tindakan:</b> Periksa baki secara langsung. Temuan terbuka tetap harus ditandai selesai oleh manusia."
         )
     else:
         status_line = "⚠️ <b>STATUS: MASIH DITEMUKAN MASALAH</b>"
