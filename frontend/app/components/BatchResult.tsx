@@ -4,6 +4,7 @@ import Button from "@mui/material/Button";
 import { api, time, type Batch, type Event, type Finding } from "@/lib/contracts";
 import { agentLabel, backendLabel, concernLabel, eventStatusLabel, runErrorLabel } from "@/lib/labels";
 import MarkedPhoto from "./MarkedPhoto";
+import HoldingTimer from "./HoldingTimer";
 import { ErrorMessage, inputClass } from "./StaffShell";
 
 function FindingItem({ finding, index, batchId, refreshed }: { finding: Finding; index: number; batchId: string; refreshed: () => Promise<void> }) {
@@ -97,6 +98,7 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
     <div className="flex flex-col gap-3 p-4">
       <h2 className="text-lg font-extrabold">{batch.table_name}</h2>
       <p className="break-all text-xs text-ink2">Batch {batch.batch_id} - {batch.status === "on_hold" ? "Ditahan supervisor" : batch.status === "closed" ? "Ditutup oleh manusia" : "Dalam peninjauan"}</p>
+      <HoldingTimer batch={batch} />
       {batch.status === "closed" && <div className="rounded border border-brand bg-mint p-3 text-sm text-brand-dark">
         <p className="font-bold">Batch ditutup oleh manusia</p>
         <p className="mt-1 text-xs text-ink2">Semua temuan sudah ditangani. Foto hanya membantu melihat kemungkinan masalah; hasil foto bukan jaminan keamanan pangan.</p>

@@ -12,7 +12,7 @@ export type Run = {
   error: { code?: string; message?: string; retryable?: boolean } | null;
 };
 export type Batch = {
-  batch_id: string; table_name: string; menu_name?: string | null; status: string; photo_url: string | null;
+  batch_id: string; table_name: string; menu_name?: string | null; status: string; photo_url: string | null; created_at: string;
   runs: Run[]; findings: Finding[];
   actions: { id: string; action: string; reason: string; actor_name: string; created_at: string }[];
 };
@@ -38,9 +38,11 @@ export async function api<T>(path: string, data?: object | FormData): Promise<T>
   }
   return result;
 }
+export function parseUtc(value: string) {
+  return new Date(/(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value}Z`);
+}
 export function time(value: string) {
-  const normalized = /(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value}Z`;
-  return new Date(normalized).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
+  return parseUtc(value).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
 }
 
 export type SafetyFeedItem = {

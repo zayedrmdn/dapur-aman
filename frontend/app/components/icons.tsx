@@ -8,6 +8,10 @@ export function CameraIcon() {
   return <Icon><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></Icon>;
 }
 
+export function ClockIcon() {
+  return <Icon><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></Icon>;
+}
+
 export function CloseIcon() {
   return <Icon size={16}><path d="M6 6l12 12M18 6 6 18" /></Icon>;
 }
