@@ -19,6 +19,7 @@ import app.main
 from app.auth import hash_password
 from app.database import Base, get_db
 from app.models import User
+from app.seed import seed_default_schools
 from agents.providers import ProviderSettings
 from agents.workflow import run_inspection_with
 from tests.agents.scripted_llm import ScriptedLlm, build_test_vision_agent, json_reply, tool_calls
@@ -30,6 +31,7 @@ with Session(engine) as db:
     db.add(User(id="test_staff", username="local_staff", name="Staf Pengujian Terisolasi", role="kitchen_staff", password_hash=hash_password("local-test-password")))
     db.add(User(id="test_supervisor", username="local_supervisor", name="Supervisor Pengujian Terisolasi", role="supervisor", password_hash=hash_password("local-test-password")))
     db.commit()
+    seed_default_schools(db)
 
 def database():
     with Session(engine) as db:
