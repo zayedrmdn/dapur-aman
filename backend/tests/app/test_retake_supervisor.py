@@ -16,6 +16,8 @@ from app.database import Base, get_db
 from app.models import ActivityEvent as SavedEvent
 from app.models import Batch, Finding, Photo, Run, User
 
+STAFF = {"X-Shared-Secret": "test-secret", "X-Actor-Id": "staff"}
+
 
 @pytest.fixture
 def api(monkeypatch):
@@ -101,7 +103,7 @@ def test_retake_preserves_workflow_current_findings_and_failed_state(api, monkey
     monkeypatch.setattr(app.main, "run_inspection", inspect)
     photo = io.BytesIO()
     Image.new("RGB", (4, 4), "white").save(photo, "PNG")
-    response = client.post("/api/inspections/upload-and-run", headers={"X-Shared-Secret": "test-secret"}, data={"batch_id": "batch_actual_identifier", "is_retake": "true"}, files={"photo": ("retake.png", photo.getvalue(), "image/png")})
+    response = client.post("/api/inspections/upload-and-run", headers=STAFF, data={"batch_id": "batch_actual_identifier", "is_retake": "true"}, files={"photo": ("retake.png", photo.getvalue(), "image/png")})
     assert len(calls) == 1
     assert calls[0].photo.media_type == "image/jpeg"
     assert db.query(SavedEvent).count() == 1
@@ -122,7 +124,7 @@ def test_retake_preserves_workflow_current_findings_and_failed_state(api, monkey
             assert data["findings"][0]["run_id"] == data["run_id"]
             assert data["findings"][0]["photo_id"] == data["photo_id"]
             assert data["findings"][0]["rule_reference"] == "new-rule"
-    detail = client.get("/api/batches/batch_actual_identifier", headers={"X-Shared-Secret": "test-secret"}).json()
+    detail = client.get("/api/batches/batch_actual_identifier", headers=STAFF).json()
     old = next(f for f in detail["findings"] if f["id"] == "old_finding")
     assert old["run_id"] == "old_run" and old["photo_id"] == "old_photo"
     assert old["photo_url"] == "https://example.test/old.jpg"
@@ -133,7 +135,7 @@ def test_retake_preserves_workflow_current_findings_and_failed_state(api, monkey
 
 def test_overview_dynamic_metadata_uses_saved_batch_and_supervisor(api):
     client, _ = api
-    response = client.get("/api/overview", headers={"X-Shared-Secret": "test-secret"})
+    response = client.get("/api/overview", headers=STAFF)
     assert response.status_code == 200
     data = response.json()
     assert data["batch_subtitle"] == "batch_actual_identifier: Test menu"
@@ -175,5 +177,5 @@ def test_retake_requires_saved_batch_before_storage_or_agent_call(api, monkeypat
     data = {"is_retake": "true"}
     if batch_id:
         data["batch_id"] = batch_id
-    response = client.post("/api/vision/inspect", headers={"X-Shared-Secret": "test-secret"}, data=data, files={"photo": ("retake.png", photo.getvalue(), "image/png")})
+    response = client.post("/api/vision/inspect", headers=STAFF, data=data, files={"photo": ("retake.png", photo.getvalue(), "image/png")})
     assert response.status_code == 400

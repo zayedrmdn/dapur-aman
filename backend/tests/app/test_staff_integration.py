@@ -1,7 +1,7 @@
 import pytest
 
 from app.models import ActivityEvent, Batch, Finding, Run
-from tests.app.test_retake_supervisor import api
+from tests.app.test_retake_supervisor import STAFF, api
 
 
 @pytest.mark.parametrize("state,outcome,uncertainty,expected", [
@@ -17,14 +17,14 @@ def test_overview_never_clears_incomplete_or_uncertain_runs(api, state, outcome,
     run = db.get(Run, "new_run")
     run.state, run.outcome, run.uncertainty_json = state, outcome, uncertainty
     db.commit()
-    data = client.get("/api/overview", headers={"X-Shared-Secret": "test-secret"}).json()
+    data = client.get("/api/overview", headers=STAFF).json()
     row = data["packing_photos"][0]
     assert row["status"] == expected
     assert row["has_check"] is (state == "completed" and outcome is not None)
     assert "packing goes on" not in data["headline"]
     if expected != "clean":
         assert row["summary_label"] != "No spots"
-    detail = client.get("/api/batches/batch_actual_identifier", headers={"X-Shared-Secret": "test-secret"}).json()
+    detail = client.get("/api/batches/batch_actual_identifier", headers=STAFF).json()
     assert detail["menu_name"] == "Test menu"
     saved = next(item for item in detail["runs"] if item["id"] == "new_run")
     assert saved["outcome"] == expected
@@ -47,10 +47,10 @@ def test_events_return_saved_trace_and_require_secret(api):
     db.commit()
     path = "/api/runs/old_run/events"
     assert client.get(path).status_code == 401
-    response = client.get(path, headers={"X-Shared-Secret": "test-secret"})
+    response = client.get(path, headers=STAFF)
     assert response.status_code == 200
     assert response.json()["events"][0]["summary"] == "Synthetic saved trace"
-    assert client.get("/api/runs/missing/events", headers={"X-Shared-Secret": "test-secret"}).status_code == 404
+    assert client.get("/api/runs/missing/events", headers=STAFF).status_code == 404
 
 
 def test_uncertain_inspection_response_cannot_be_clean():
@@ -60,3 +60,19 @@ def test_uncertain_inspection_response_cannot_be_clean():
     response = build_response(result, "Table test", "00:00", [])
     assert response.status == "review_required"
     assert "packing goes on" not in response.headline
+
+
+@pytest.mark.parametrize("method,path", [
+    ("get", "/api/overview"),
+    ("get", "/api/batches/batch_actual_identifier"),
+    ("get", "/api/runs/old_run/events"),
+    ("get", "/api/schools"),
+    ("post", "/api/inspections/upload-and-run"),
+])
+@pytest.mark.parametrize("actor", [None, "unknown"])
+def test_data_routes_require_a_verified_actor(api, method, path, actor):
+    client, _ = api
+    headers = {"X-Shared-Secret": "test-secret"}
+    if actor:
+        headers["X-Actor-Id"] = actor
+    assert getattr(client, method)(path, headers=headers).status_code == 401

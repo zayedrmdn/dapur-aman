@@ -186,6 +186,7 @@ async def inspect_food_photo(
     is_retake: bool = Form(False),
     school_id: str | None = Form(None, description="Opsional: ID sekolah penerima"),
     _: None = Depends(verify_shared_secret),
+    __: User = Depends(get_current_actor),
     db: Session = Depends(get_db),
 ) -> InspectionResponseSchema:
     """Endpoint utama inspeksi foto baki makanan:
@@ -458,6 +459,7 @@ def run_display_status(run: Run | None) -> str:
 def get_batch_overview(
     db: Session = Depends(get_db),
     _: None = Depends(verify_shared_secret),
+    __: User = Depends(get_current_actor),
 ) -> BatchOverviewSchema:
     """Mengembalikan data lengkap yang siap pakai untuk tampilan UI-1:
     - Judul Header & Dapur ('Dapur Aman', 'SPPG Cibeureum Synthetic demo')
@@ -728,6 +730,7 @@ def get_batch_detail(
     batch_id: str,
     db: Session = Depends(get_db),
     _: None = Depends(verify_shared_secret),
+    __: User = Depends(get_current_actor),
 ) -> BatchDetailSchema:
     """Ambil riwayat lengkap dari sebuah batch:
 
@@ -955,7 +958,12 @@ async def record_human_action(
 
 
 @app.get("/api/runs/{run_id}/events", tags=["Batch & History"])
-def get_run_events(run_id: str, db: Session = Depends(get_db), _: None = Depends(verify_shared_secret)) -> dict:
+def get_run_events(
+    run_id: str,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_shared_secret),
+    __: User = Depends(get_current_actor),
+) -> dict:
     if not db.get(Run, run_id):
         raise HTTPException(status_code=404, detail="Run not found.")
     events = db.query(ActivityEvent).filter(ActivityEvent.run_id == run_id).order_by(ActivityEvent.sequence).all()
@@ -974,8 +982,11 @@ async def trigger_test_alert(
     batch_id: str = "batch_demo_01",
     db: Session = Depends(get_db),
     _: None = Depends(verify_shared_secret),
+    actor: User = Depends(get_current_actor),
 ) -> dict:
     """Kirim notifikasi uji coba ke Telegram Supervisor untuk simulasi / verifikasi koneksi bot."""
+    if actor.role != "supervisor":
+        raise HTTPException(status_code=403, detail="Supervisor access required.")
     sample_findings = [
         {
             "concern_type": "hair",
@@ -1016,6 +1027,7 @@ async def trigger_test_alert(
 def get_school_recipients(
     db: Session = Depends(get_db),
     _: None = Depends(verify_shared_secret),
+    __: User = Depends(get_current_actor),
 ) -> list[dict]:
     """Ambil daftar sekolah penerima program MBG beserta kontak kepala sekolah."""
     schools = db.query(SchoolRecipient).order_by(SchoolRecipient.name.asc()).all()

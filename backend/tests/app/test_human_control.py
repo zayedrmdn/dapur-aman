@@ -9,7 +9,7 @@ from agents.contract import ActivityEvent, ErrorStage, InspectionOutcome, Outcom
 from app.models import Batch, Finding
 from tests.app.test_retake_supervisor import api
 
-SECRET = {"X-Shared-Secret": "test-secret"}
+SECRET = {"X-Shared-Secret": "test-secret", "X-Actor-Id": "staff"}
 BATCH = "batch_actual_identifier"
 
 
@@ -51,7 +51,7 @@ def test_ai_never_closes_batch_or_resolves_findings(api, monkeypatch, letters, s
         return outcome_for(state)
 
     monkeypatch.setattr(app.main, "run_inspection", inspect)
-    upload(client, is_retake)
+    assert upload(client, is_retake).status_code in (200, 502)
     db.expire_all()
     assert db.get(Batch, BATCH).status == "on_hold"
     assert db.get(Finding, "old_finding").status == "open"
