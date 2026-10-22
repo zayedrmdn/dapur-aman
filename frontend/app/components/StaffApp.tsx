@@ -3,11 +3,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@mui/material/Button";
-import { api, ApiError, type Batch, type Overview } from "@/lib/contracts";
+import { api, ApiError, time, type Batch, type Overview } from "@/lib/contracts";
 import StaffShell, { ErrorMessage } from "./StaffShell";
 import UploadForm from "./UploadForm";
 import BatchResult from "./BatchResult";
-import { backendLabel } from "@/lib/labels";
+import { backendLabel, batchHeading } from "@/lib/labels";
 
 export default function StaffApp({ review = false }: { review?: boolean }) {
   const router = useRouter();
@@ -45,7 +45,7 @@ export default function StaffApp({ review = false }: { review?: boolean }) {
     {!user && !error && <p role="status" className="p-4">Memeriksa sesi...</p>}
     {user && !review && <>
       <section className="p-4"><h2 className="text-lg font-extrabold">Batch tersimpan</h2><p className="mt-1 text-sm text-ink2">Pilih batch untuk meninjau foto, mencatat tindakan, atau mengambil foto ulang.</p>
-        {!overview ? <p role="status" className="mt-4">Memuat batch...</p> : !overview.packing_photos.length ? <p className="mt-4 text-sm">Belum ada batch. Foto pertama akan membuat batch baru.</p> : <ul className="mt-3 divide-y divide-rule">{overview.packing_photos.map(item => <li key={item.batch_id}><Link className="block py-4 hover:bg-mint" href={`/staff-review?batch=${encodeURIComponent(item.batch_id)}`}><b className="block">{item.table_name}</b><span className="mt-1 block text-sm text-ink2">{backendLabel(item.summary_label)}</span><span className="mt-1 block break-all text-xs text-ink2">{item.batch_id}</span></Link></li>)}</ul>}
+        {!overview ? <p role="status" className="mt-4">Memuat batch...</p> : !overview.packing_photos.length ? <p className="mt-4 text-sm">Belum ada batch. Foto pertama akan membuat batch baru.</p> : <ul className="mt-3 divide-y divide-rule">{overview.packing_photos.map(item => <li key={item.batch_id}><Link className="block py-4 hover:bg-mint" href={`/staff-review?batch=${encodeURIComponent(item.batch_id)}`}><b className="block">{batchHeading(item.table_name, item.school_name)}</b><span className="mt-1 block text-sm text-ink2">{backendLabel(item.summary_label)}</span>{item.created_at && <span className="mt-1 block text-xs text-ink2">Dibuat {time(item.created_at)}</span>}</Link></li>)}</ul>}
         <Button onClick={() => { void load(); }} variant="outlined" className="mt-4">Muat ulang daftar batch</Button>
       </section>
       <UploadForm done={uploaded} />

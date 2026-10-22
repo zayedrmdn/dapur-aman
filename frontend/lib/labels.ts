@@ -108,6 +108,13 @@ export function backendLabel(value: string | null | undefined): string {
   return /^[a-z0-9]+(_[a-z0-9]+)+$/.test(text) ? humanise(text) : text;
 }
 
+/** Readable batch name from its meja and school; production meja names already include the school. */
+export function batchHeading(table: string | null | undefined, school: string | null | undefined): string {
+  const place = table?.trim() ?? "";
+  if (!school || place.includes(school)) return place || "Batch tanpa nama meja";
+  return place ? `${school} • ${place}` : school;
+}
+
 /** The one user-facing date and time format: "22 Okt, 10.49 WIB". */
 export function formatWib(date: Date): string {
   return `${date.toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} WIB`;

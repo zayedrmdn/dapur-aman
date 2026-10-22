@@ -2,10 +2,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Button from "@mui/material/Button";
 import { api, time, type Batch, type Event, type Finding } from "@/lib/contracts";
-import { agentLabel, backendLabel, concernLabel, eventStatusLabel, runErrorLabel } from "@/lib/labels";
+import { agentLabel, backendLabel, batchHeading, concernLabel, eventStatusLabel, runErrorLabel } from "@/lib/labels";
 import MarkedPhoto from "./MarkedPhoto";
 import HoldingTimer from "./HoldingTimer";
-import { ErrorMessage, inputClass } from "./StaffShell";
+import { ErrorMessage, inputClass, TechnicalDetails } from "./StaffShell";
 
 function FindingItem({ finding, index, batchId, canFix, refreshed }: { finding: Finding; index: number; batchId: string; canFix: boolean; refreshed: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
@@ -26,7 +26,6 @@ function FindingItem({ finding, index, batchId, canFix, refreshed }: { finding: 
       <div className="min-w-0"><h3 className="font-bold">{concernLabel(finding.title)}</h3><p className="mt-1 text-sm text-ink2">{finding.level === "safety" ? "Keamanan" : "Kualitas"} - {finding.state === "open" ? "Perlu tindakan" : finding.state === "fixed" ? "Diperbaiki oleh staf" : "Diabaikan dengan alasan"}</p></div>
     </div>
     <p className="mt-3">{finding.detail}</p>
-    {finding.rule_reference && <p className="mt-2 break-words text-sm text-ink2">Rujukan aturan: {finding.rule_reference}</p>}
     {finding.evidence_gap && <p className="mt-2 text-sm">Bukti belum lengkap: {finding.evidence_gap}</p>}
     {finding.suggested_action && <p className="mt-2 text-sm"><b>Saran tindakan:</b> {finding.suggested_action}</p>}
     {finding.resolution_text && <p className="mt-3 rounded-xl border border-brand bg-mint p-3 text-sm">{finding.resolution_text}</p>}
@@ -38,6 +37,7 @@ function FindingItem({ finding, index, batchId, canFix, refreshed }: { finding: 
       <p className="text-xs text-ink2">{canFix ? "Foto ulang sudah diperiksa. Pastikan perbaikannya terlihat sebelum menandai diperbaiki." : "Perbaiki porsi, lalu ambil foto ulang. Temuan dapat ditandai diperbaiki setelah foto ulang selesai diperiksa."} Agen tidak menutup temuan secara otomatis.</p>
     </form>}
     {error && <ErrorMessage>{error}</ErrorMessage>}
+    <TechnicalDetails className="mt-2" items={[["ID temuan", finding.id], ["Rujukan aturan", finding.rule_reference]]} />
   </li>;
 }
 
@@ -100,8 +100,12 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
   const canClose = batch.status === "in_review" && openFindings.length === 0 && latestRun?.state === "completed" && latestRun.outcome !== "retake_required";
   return <section className="border-t border-rule pb-2">
     <div className="flex flex-col gap-3 p-4">
-      <h2 className="text-lg font-extrabold">{batch.table_name}</h2>
-      <p className="break-all text-xs text-ink2">Batch {batch.batch_id} - {batch.status === "on_hold" ? "Ditahan supervisor" : batch.status === "closed" ? "Ditutup oleh manusia" : "Dalam peninjauan"}</p>
+      <div>
+        <h2 className="text-lg font-extrabold">{batchHeading(batch.table_name, batch.school_name)}</h2>
+        {batch.menu_name && <p className="mt-1 text-sm">{batch.menu_name}</p>}
+        <p className="mt-1 text-xs text-ink2">Dibuat {time(batch.created_at)} · {batch.status === "on_hold" ? "Ditahan supervisor" : batch.status === "closed" ? "Ditutup oleh manusia" : "Dalam peninjauan"}</p>
+        <TechnicalDetails items={[["ID batch", batch.batch_id]]} />
+      </div>
       <HoldingTimer batch={batch} />
       {batch.status === "closed" && <div className="rounded-xl border border-brand bg-mint p-3 text-sm text-brand-dark">
         <p className="font-bold">Batch ditutup oleh manusia</p>
@@ -125,7 +129,7 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
       </div>}
       {runs.length > 0 && <label className="text-sm font-medium">Foto dan inspeksi<select aria-label="Foto dan inspeksi" value={run.id} onChange={event => setSelectedRun(event.target.value)} className={`mt-1 ${inputClass}`}>{runs.map((item, index) => <option key={item.id} value={item.id}>{index === 0 ? "Terbaru" : "Sebelumnya"}: {time(item.created_at)}</option>)}</select></label>}
       {run && (run.provider === "fixture" || run.provider.startsWith("test")) && <p className="rounded-xl border border-quality bg-quality-bg p-3 text-sm text-quality-ink">SIMULASI / PENGUJIAN TERISOLASI - {run.provider}. Hasil ini bukan inspeksi model langsung.</p>}
-      {!run ? <ErrorMessage>Belum ada inspeksi tersimpan. Unggah foto untuk mulai.</ErrorMessage> : run.state !== "completed" ? <div><ErrorMessage>Inspeksi {run.state === "failed" ? "gagal" : "belum selesai"}. {runErrorLabel(run.error)}</ErrorMessage>{run.error?.message && <p className="mt-1 break-words font-mono text-xs text-ink2">Detail teknis: {run.error.message}</p>}</div> : <p role="status" className="rounded-xl border border-quality bg-quality-bg p-3 text-sm text-quality-ink">{run.outcome === "retake_required" ? "Foto perlu diulang; bukti belum cukup." : run.outcome === "clean" ? "Tidak ada masalah terlihat pada hasil ini. Tetap lakukan pemeriksaan manusia." : "Hasil memerlukan peninjauan dan tindakan manusia."}</p>}
+      {!run ? <ErrorMessage>Belum ada inspeksi tersimpan. Unggah foto untuk mulai.</ErrorMessage> : run.state !== "completed" ? <div><ErrorMessage>Inspeksi {run.state === "failed" ? "gagal" : "belum selesai"}. {runErrorLabel(run.error)}</ErrorMessage><TechnicalDetails items={[["Kode", run.error?.code], ["Tahap", run.error?.stage], ["Pesan", run.error?.message]]} /></div> : <p role="status" className="rounded-xl border border-quality bg-quality-bg p-3 text-sm text-quality-ink">{run.outcome === "retake_required" ? "Foto perlu diulang; bukti belum cukup." : run.outcome === "clean" ? "Tidak ada masalah terlihat pada hasil ini. Tetap lakukan pemeriksaan manusia." : "Hasil memerlukan peninjauan dan tindakan manusia."}</p>}
       {run?.uncertainty?.length > 0 && <div><h3 className="font-bold">Ketidakpastian</h3><ul className="mt-1 list-disc pl-5 text-sm">{run.uncertainty.map((note, index) => <li key={index}>{note}</li>)}</ul></div>}
       <Button variant="outlined" onClick={() => { setSelectedRun(""); void refresh(); }}>Muat ulang hasil tersimpan</Button>
     </div>
@@ -134,7 +138,7 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
     {findings.length ? <ol>{findings.map((finding, index) => <FindingItem key={finding.id} finding={finding} index={index} batchId={batch.batch_id} canFix={hasRetake(finding)} refreshed={refresh} />)}</ol> : <p className="p-4 text-sm text-ink2">Tidak ada temuan tersimpan pada foto ini. Periksa status dan ketidakpastian di atas.</p>}
     {run && <details className="border-t border-rule px-4 py-4" open>
       <summary className="cursor-pointer font-bold">Aktivitas AI tersimpan</summary>
-      <p className="mt-2 break-words text-xs text-ink2">{run.provider} / {run.model} - {run.id}</p>
+      <TechnicalDetails className="mt-1" items={[["Penyedia model", `${run.provider} / ${run.model}`], ["ID inspeksi", run.id]]} />
       {trace?.runId !== run.id ? <p role="status" className="mt-2 text-sm">Memuat rekaman...</p> : trace.error ? <p className="mt-2 text-sm">{trace.error}</p> : !trace.events.length ? <p className="mt-2 text-sm">Tidak ada rekaman aktivitas untuk inspeksi ini.</p> : <ol className="mt-3 divide-y divide-rule">{trace.events.map(event => <li key={event.sequence} className="py-3 text-sm"><b>{event.sequence}. {agentLabel(event.agent)}</b>{event.step.toLowerCase() !== event.agent.toLowerCase() && (event.kind === "tool_call" ? <> - <code className="break-all font-mono text-xs">{event.step}</code></> : <> - {agentLabel(event.step)}</>)}<p className="text-xs text-ink2">{time(event.timestamp)} - {eventStatusLabel(event.status)}</p><p className="mt-1 break-words">{event.summary}</p>{event.error && <p className="text-safety-ink">{event.error}</p>}{event.references.length > 0 && <p className="mt-1 break-words text-xs text-ink2">Rujukan: {event.references.join(", ")}</p>}</li>)}</ol>}
     </details>}
     {batch.actions.length > 0 && <details className="border-t border-rule px-4 py-4"><summary className="cursor-pointer font-bold">Riwayat tindakan manusia</summary><ul className="mt-2 divide-y divide-rule">{batch.actions.map(action => <li key={action.id} className="py-3 text-sm"><b>{action.actor_name}</b> - {backendLabel(action.action)}<p>{action.reason}</p><time className="text-xs text-ink2">{time(action.created_at)}</time></li>)}</ul></details>}

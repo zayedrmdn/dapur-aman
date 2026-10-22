@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import { api, ApiError, type SupervisorDashboardData, type BatchListItem } from "@/lib/contracts";
-import { backendLabel, concernLabel, findingSubtitle } from "@/lib/labels";
+import { api, ApiError, time, type SupervisorDashboardData, type BatchListItem } from "@/lib/contracts";
+import { backendLabel, batchHeading, concernLabel, findingSubtitle } from "@/lib/labels";
+import { TechnicalDetails } from "../components/StaffShell";
 
 function loadErrorMessage(err: unknown): string {
   if (err instanceof ApiError && err.status === 403) return "Dasbor ini hanya untuk supervisor. Masuk dengan akun supervisor untuk melihatnya.";
@@ -125,7 +126,7 @@ export default function SupervisorDashboardPage() {
         reason,
       });
 
-      setActionNotice(isHold ? `Batch ${batchId} ditahan.` : `Penahanan batch ${batchId} dicabut.`);
+      setActionNotice(isHold ? `${batchName(batchId)} ditahan.` : `Penahanan ${batchName(batchId)} dicabut.`);
       setHoldTarget(null);
       setHoldReason("");
       await loadDashboard();
@@ -141,7 +142,7 @@ export default function SupervisorDashboardPage() {
     setActionNotice("");
     try {
       await api(`notifications/dispatch-report/${encodeURIComponent(batchId)}`, {});
-      setActionNotice(`Laporan untuk ${batchId} terkirim ke Telegram sekolah.`);
+      setActionNotice(`Laporan untuk ${batchName(batchId)} terkirim ke Telegram sekolah.`);
       await loadDashboard();
     } catch (err) {
       setActionNotice(err instanceof Error ? err.message : "Gagal mengirim notifikasi Telegram.");
@@ -156,7 +157,7 @@ export default function SupervisorDashboardPage() {
     return (
       <form onSubmit={handleHoldBatch} className="mt-3 flex w-full flex-col gap-2" aria-busy={actionLoading}>
         <label className="flex flex-col gap-1 text-xs font-semibold text-ink">
-          {holdTarget.isHold ? `Alasan menahan batch ${batchId}` : `Alasan mencabut penahanan ${batchId}`}
+          {holdTarget.isHold ? `Alasan menahan ${batchName(batchId)}` : `Alasan mencabut penahanan ${batchName(batchId)}`}
           <textarea
             required
             minLength={3}
@@ -188,6 +189,10 @@ export default function SupervisorDashboardPage() {
     return true;
   });
   const onHoldCount = data ? data.batches.filter((b) => b.status === "on_hold").length : 0;
+  function batchName(batchId: string): string {
+    const batch = data?.batches.find((b) => b.batch_id === batchId);
+    return batch ? batchHeading(batch.table_name ?? batch.menu_name, batch.school_name) : "Batch ini";
+  }
 
   return (
     <div className="min-h-screen bg-ground text-ink">
@@ -426,12 +431,8 @@ export default function SupervisorDashboardPage() {
                   {/* Right: Details & Supervisor Actions */}
                   <div className="flex flex-col justify-between space-y-4">
                     <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded bg-safety-bg px-2 py-0.5 text-xs font-bold text-safety-ink">
-                          ID temuan: {data.active_concern.finding_id}
-                        </span>
-                        <span className="text-xs text-ink2">{findingSubtitle(data.active_concern.subtitle)}</span>
-                      </div>
+                      <p className="text-sm font-bold text-ink">{batchName(data.active_concern.batch_id)}</p>
+                      <p className="mt-0.5 text-xs text-ink2">{findingSubtitle(data.active_concern.subtitle)}</p>
 
                       <h3 className="mt-2 text-xl font-extrabold text-ink">
                         {concernLabel(data.active_concern.title)}
@@ -461,7 +462,7 @@ export default function SupervisorDashboardPage() {
                           disabled={actionLoading}
                           onClick={() => openHoldForm(data.active_concern!.batch_id, true)}
                         >
-                          {`Tahan batch (${data.active_concern.batch_id})`}
+                          Tahan batch ini
                         </Button>
 
                         <Button
@@ -474,6 +475,7 @@ export default function SupervisorDashboardPage() {
                         </Button>
                       </div>
                       {holdForm(data.active_concern.batch_id, true)}
+                      <TechnicalDetails className="mt-2" items={[["ID batch", data.active_concern.batch_id], ["ID temuan", data.active_concern.finding_id]]} />
                     </div>
                   </div>
                 </div>
@@ -589,7 +591,7 @@ export default function SupervisorDashboardPage() {
                               {backendLabel(item.duration_label)}
                             </span>
                           </div>
-                          <p className="text-[11px] text-ink2">{findingSubtitle(item.subtitle)}</p>
+                          <p className="text-[11px] text-ink2">{batchName(item.batch_id)} · {findingSubtitle(item.subtitle)}</p>
                           {item.resolution_note && (
                             <p className="mt-1 rounded bg-ground p-1.5 text-[11px] font-medium text-ink">
                               {item.resolution_note}
@@ -641,11 +643,11 @@ export default function SupervisorDashboardPage() {
                     filteredBatches.map((b) => (
                       <div key={b.batch_id} className="py-3 text-xs">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="min-w-0 max-w-[320px]">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-bold text-ink">{b.batch_id}</span>
+                          <div className="min-w-0 max-w-[420px]">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="font-bold text-ink">{batchName(b.batch_id)}</span>
                               <span
-                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${
                                   b.badge_color === "green"
                                     ? "bg-mint text-brand-dark"
                                     : b.badge_color === "red"
@@ -656,8 +658,10 @@ export default function SupervisorDashboardPage() {
                                 {backendLabel(b.badge_label)}
                               </span>
                             </div>
-                            <p className="mt-0.5 truncate font-bold text-ink">{b.menu_name}</p>
-                            <p className="truncate text-[11px] text-ink2">{b.subtitle}</p>
+                            <p className="mt-0.5 text-ink">{b.menu_name}</p>
+                            <p className="text-[11px] text-ink2">
+                              {[b.created_at ? `Dibuat ${time(b.created_at)}` : "", b.subtitle.startsWith(`${b.menu_name} • `) ? b.subtitle.slice(b.menu_name.length + 3) : b.subtitle].filter(Boolean).join(" • ")}
+                            </p>
                           </div>
 
                           <div className="flex items-center gap-2">

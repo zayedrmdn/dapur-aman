@@ -32,4 +32,12 @@ export default function StaffShell({ title, name, role, children, logout }: { ti
 export function ErrorMessage({ children }: { children: React.ReactNode }) {
   return <p role="alert" className="rounded-xl border border-safety bg-safety-bg p-3 text-sm text-safety-ink">{children}{typeof children === "string" && children.includes("Sesi berakhir") && <Link href="/login" className="mt-2 block font-bold underline">Masuk kembali</Link>}</p>;
 }
+export function TechnicalDetails({ items, className = "" }: { items: [string, string | null | undefined][]; className?: string }) {
+  const shown = items.filter(([, value]) => value);
+  if (!shown.length) return null;
+  return <details className={`text-xs text-ink2 ${className}`}>
+    <summary className="inline-flex min-h-11 cursor-pointer items-center font-semibold">Detail teknis</summary>
+    <dl className="mt-1 grid gap-1">{shown.map(([label, value]) => <div key={label} className="min-w-0"><dt className="inline">{label}: </dt><dd className="inline break-all font-mono">{value}</dd></div>)}</dl>
+  </details>;
+}
 export const inputClass = "min-h-12 w-full rounded-xl border border-rule bg-paper px-3 py-2 text-base text-ink";
