@@ -50,20 +50,21 @@ Setiap tindakan yang mengubah temuan atau batch melewati endpoint tindakan manus
 | --- | --- |
 | Login berdasarkan peran | Akun staf dan supervisor. Setelah login, supervisor diarahkan ke `/dashboard` dan staf ke `/staff`, sesuai peran yang dikembalikan backend. |
 | Batch baru dari foto | Staf mengisi nama meja atau jalur, komponen menu, dan sekolah tujuan, lalu mengambil atau memilih foto. |
+| Kamera atau galeri | "Ambil Foto" membuka kamera belakang; "Pilih dari Galeri" memilih foto tersimpan jika kamera tidak tersedia atau izinnya ditolak. |
 | Persiapan foto | Browser menerima JPEG, PNG, atau WebP hingga 20 MB dan mengubah ukurannya menjadi sisi terpanjang 1600 px dalam format JPEG. Server menolak file di atas 4 MB dan menyimpan setiap foto sebagai JPEG. |
-| Tag menu | Komponen menu diketik sebagai tag (Enter atau koma menambah satu tag; duplikat tanpa membedakan huruf besar-kecil dilewati). Vision memeriksa foto terhadap tag ini. Foto ulang memakai menu batch. |
-| Penanda progres AI | Menampilkan tiga tahap (Orkestrator, Vision, Kepatuhan) selama inspeksi berjalan. Tahapan ini berbasis waktu, bukan status langsung dari server. |
-| Foto bertanda | Kotak bernomor di atas setiap temuan. Mengetuk nomor akan menuju temuan tersebut. |
+| Tag menu | Komponen menu diketik sebagai tag (Enter atau koma menambah satu tag; duplikat tanpa membedakan huruf besar-kecil dilewati). Vision memeriksa foto terhadap tag ini. Batch baru dimulai dengan menu demo dan meja "Meja 1"; foto ulang terisi otomatis dengan menu dan nama meja yang tersimpan di batch. |
+| Penanda progres AI | Menampilkan tiga tahap (Orkestrator sejak 0 detik, Vision sejak 2 detik, Kepatuhan sejak 9 detik) selama inspeksi berjalan. Tahapan ini berbasis waktu, bukan status langsung dari server. |
+| Foto bertanda | Kotak bernomor di atas setiap temuan yang lokasinya diketahui. Mengetuk nomor akan menuju temuan tersebut. Temuan tanpa kotak hanya muncul di daftar. |
 | Daftar temuan | Tingkat (keamanan atau kualitas), penjelasan, rujukan aturan, kekurangan bukti, dan tindakan yang disarankan untuk setiap temuan. |
 | Keputusan atas temuan | "Sudah diperbaiki" atau "Abaikan dengan alasan". Pilihan diperbaiki hanya tersedia setelah ada foto ulang yang lebih baru dan sudah selesai diperiksa. |
 | Foto ulang | "Periksa foto ulang" menambahkan foto baru ke batch yang sama. Temuan sebelumnya tetap menyimpan keputusan manusia; AI tidak pernah menghapusnya. |
 | Penghitung waktu penyimpanan | Waktu sejak foto pertama batch terhadap batas demo 4 jam. Berwarna kuning pada 30 menit terakhir dan merah setelah batas terlewati. |
-| Dasbor supervisor | Ringkasan angka, temuan keamanan terbuka terbaru, daftar batch yang dapat difilter, dan status per sekolah. Khusus supervisor. |
-| Tahan dan cabut penahanan | "Tahan batch" dan "Lepaskan tahanan", masing-masing dengan alasan. Khusus supervisor. |
+| Dasbor supervisor | Ringkasan angka, temuan keamanan terbuka terbaru, daftar batch yang dapat difilter, dan status per sekolah. Diperbarui setiap 20 detik (dapat dimatikan). Khusus supervisor. |
+| Tahan dan cabut penahanan | "Tahan batch" pada kartu temuan dan "Lepaskan tahanan" pada kartu atau daftar batch, masing-masing dengan alasan. Tombol mengikuti status batch yang tersimpan, dan hasilnya tampil di dekat formulir. Khusus supervisor. |
 | Tutup batch | "Tutup batch" muncul jika batch tidak sedang ditahan, tidak ada temuan terbuka, dan inspeksi terakhir selesai tanpa meminta foto ulang. |
-| Laporan ke sekolah via Telegram | "Laporan Pemeriksaan Batch" untuk kontak sekolah. Dikirim saat supervisor menutup batch, atau atas permintaan supervisor untuk batch yang sudah ditutup. |
-| Peringatan supervisor via Telegram | Peringatan keamanan saat foto pertama memiliki temuan, dan pesan saat foto ulang menunjukkan temuan atau tidak ada masalah terlihat. |
-| Aktivitas AI tersimpan | "Aktivitas AI tersimpan" mencantumkan langkah agen dan tool yang tercatat untuk setiap inspeksi. |
+| Laporan ke sekolah via Telegram | "Laporan Pemeriksaan Batch" untuk sekolah. Dikirim saat supervisor menutup batch, atau atas permintaan supervisor untuk batch yang sudah ditutup. Laporan dikirim ke chat milik sekolah jika tersimpan; sekolah demo tidak memilikinya, sehingga laporan dikirim ke `TELEGRAM_SCHOOL_CHAT_ID` (atau chat supervisor). |
+| Peringatan supervisor via Telegram | Peringatan saat foto pertama memiliki temuan apa pun (keamanan atau kualitas), dan pesan saat foto ulang menunjukkan temuan atau tidak ada masalah terlihat. |
+| Aktivitas AI tersimpan | "Aktivitas AI tersimpan" mencantumkan langkah agen dan tool yang tercatat untuk setiap inspeksi, dengan nama agen dan langkah yang dikenal dalam Bahasa Indonesia. |
 | Riwayat tindakan manusia | "Riwayat tindakan manusia" mencantumkan siapa melakukan apa pada batch, kapan, dan alasannya. |
 
 Belum diimplementasikan: verifikasi QR untuk baki atau laporan. Tidak ada kode QR di frontend maupun backend.
@@ -117,8 +118,8 @@ flowchart LR
 
 1. Masuk dengan akun supervisor. Aplikasi membuka `/dashboard`. Peran lain mendapat pesan khusus supervisor; backend mengembalikan 403.
 2. Baca ringkasan angka (temuan keamanan, diperbaiki oleh staf, diabaikan, masih terbuka) dan temuan keamanan terbuka terbaru.
-3. Tahan batch dengan "Tahan batch" pada kartu temuan dan alasan (minimal 3 karakter).
-4. Filter batch berdasarkan semua, terbuka, ditahan, atau ditutup. Lepaskan penahanan dengan "Lepaskan tahanan" dan alasan. Alasan penahanan tampil di dasbor supervisor dan daftar batch staf.
+3. Tahan batch dengan "Tahan batch" pada kartu temuan dan alasan (minimal 3 karakter). Tombol kirim tetap nonaktif sampai alasan cukup panjang.
+4. Filter batch berdasarkan semua, terbuka, ditahan, atau ditutup. Lepaskan penahanan dengan "Lepaskan tahanan" dan alasan. Alasan penahanan tampil di dasbor supervisor dan di daftar batch staf ("Ditahan supervisor — jangan distribusikan").
 5. Buka batch mana pun dengan "Buka detail" untuk meninjaunya seperti staf.
 6. Untuk batch yang sudah ditutup, kirim laporan ke sekolah dengan "Kirim laporan Telegram" (dasbor) atau "Kirim laporan ke Telegram sekolah" (layar peninjauan).
 
@@ -132,7 +133,7 @@ flowchart LR
 | Menutup batch | Semua pengguna yang sudah masuk | Ditolak (400) selama masih ada temuan terbuka atau batch sedang ditahan. |
 | Mengirim laporan ke sekolah | Khusus supervisor | Batch harus sudah ditutup (jika tidak, 409). Dikirim otomatis hanya saat supervisor yang menutup batch. |
 
-Alasan minimal 3 karakter setelah spasi di awal dan akhir dihapus (aplikasi juga membatasinya hingga 2000). Penahanan mencegah penutupan batch, tetapi tidak mencegah foto baru atau keputusan atas temuan.
+Alasan minimal 3 karakter setelah spasi di awal dan akhir dihapus. BFF juga membatasinya hingga 2000 karakter; backend tidak memiliki batas atas. Penahanan mencegah penutupan batch, tetapi tidak mencegah foto baru atau keputusan atas temuan. Backend hanya memeriksa transisi di atas; lihat [Keterbatasan yang diketahui](#keterbatasan-yang-diketahui) untuk transisi yang tidak diblokir.
 
 ### Status batch dan inspeksi
 
@@ -144,8 +145,10 @@ Alasan minimal 3 karakter setelah spasi di awal dan akhir dihapus (aplikasi juga
 | Hasil inspeksi `clean` | Tidak ada masalah terlihat. Ini tidak membuktikan makanan aman. |
 | Hasil inspeksi `review_required` | Temuan atau ketidakpastian perlu ditinjau manusia |
 | Hasil inspeksi `retake_required` | Foto tidak cukup untuk memutuskan; ambil foto baru |
-| Status inspeksi `running` | Inspeksi sedang berjalan |
+| Status inspeksi `completed` | Agen selesai dan pemeriksaan Python lolos |
 | Status inspeksi `failed` | Inspeksi gagal; tidak ada hasil yang ditampilkan sebagai temuan |
+
+Inspeksi baru disimpan setelah selesai, sehingga `running` (didefinisikan di kontrak) tidak pernah tersimpan. Dasbor supervisor juga menurunkan status tampilan yang tidak disimpan: `packing`, `finding_open`, dan `on_hold`.
 
 ## Agen AI
 
@@ -235,12 +238,12 @@ Tabel aturan adalah `rule-table-v1` di `backend/agents/compliance/rules.py`. Ben
 | `/` | Mengarahkan ke `/staff` |
 | `/landing` | Halaman landing statis dengan tautan ke login dan dasbor |
 | `/login` | Formulir nama pengguna dan kata sandi; mengarahkan sesuai peran setelah login |
-| `/staff` | Daftar batch staf, formulir batch baru, dan peninjauan batch |
-| `/staff-review`, `/staff-send-confirm` | Aplikasi staf dalam mode peninjauan |
+| `/staff` | Daftar batch staf dan formulir batch baru |
+| `/staff-review?batch=<id>`, `/staff-send-confirm` | Aplikasi staf dalam mode peninjauan untuk satu batch |
 | `/supervisor` | Mengarahkan ke `/dashboard` |
-| `/dashboard` | Dasbor supervisor (khusus supervisor) |
+| `/dashboard` | Dasbor supervisor. Semua pengguna yang sudah masuk dapat membuka halamannya; peran lain melihat pesan khusus supervisor karena panggilan datanya mengembalikan 403. |
 
-`frontend/app/sample/*.html` adalah cuplikan prototipe statis yang disimpan sebagai referensi; file ini bukan route aplikasi.
+Tidak ada middleware route: halaman memuat data melalui BFF, mengarahkan pengguna ke `/login` saat 401, dan mengandalkan backend untuk peran. `not-found.tsx` dan `error.tsx` menampilkan halaman 404 dan error. `frontend/app/sample/*.html` adalah cuplikan prototipe statis yang disimpan sebagai referensi; file ini bukan route aplikasi.
 
 ### Komponen dan modul
 
@@ -279,7 +282,7 @@ Route `frontend/app/api/staff/[...path]/route.ts` menerima GET dan POST lalu men
 | POST | `notifications/dispatch-report/{batch_id}` | `POST /api/notifications/dispatch-report/{batch_id}` | |
 | POST | `inspect` | `POST /api/inspections/upload-and-run` | JPEG, PNG, atau WebP hingga 4 MB. Satu inspeksi sekaligus dan 10 per 10 menit per akun. |
 
-Setiap operasi selain `login` memerlukan cookie sesi yang valid (jika tidak, 401). Setiap POST harus berasal dari origin yang sama (jika tidak, 403). Pembatasan laju dan penjaga satu inspeksi disimpan di memori per instance server.
+Operasi yang tidak dikenal mengembalikan 404. BFF tidak membuka `/api/notifications/test-alert` atau `/api/vision/inspect`. Setiap operasi selain `login` memerlukan cookie sesi yang valid (jika tidak, 401). Setiap POST harus berasal dari origin yang sama (jika tidak, 403). Pembatasan laju dan penjaga satu inspeksi disimpan di memori per instance server.
 
 ## Backend dan API
 
@@ -310,7 +313,7 @@ Semua route ada di `backend/app/main.py`. "Secret" berarti header `X-Shared-Secr
 | POST | `/api/auth/login` | Memeriksa nama pengguna dan kata sandi; mengembalikan ID aktor, nama, dan peran | Ya | Tidak | Semua |
 | POST | `/api/inspections/upload-and-run` | Menyimpan foto, menjalankan tiga agen, menyimpan inspeksi dan temuan | Ya | Ya | Semua |
 | POST | `/api/vision/inspect` | Alias route di atas | Ya | Ya | Semua |
-| GET | `/api/overview` | Data beranda staf: ringkasan, menu, batch | Ya | Ya | Semua |
+| GET | `/api/overview` | Data beranda staf: ringkasan dan baris batch (status, alasan penahanan). Menu disimpan per batch, sehingga daftar menunya kosong. | Ya | Ya | Semua |
 | GET | `/api/batches/overview` | Alias `/api/overview` | Ya | Ya | Semua |
 | GET | `/api/supervisor/dashboard` | Data dasbor supervisor | Ya | Ya | Supervisor |
 | GET | `/api/supervisor/feed` | Alias route dasbor | Ya | Ya | Supervisor |
@@ -318,46 +321,210 @@ Semua route ada di `backend/app/main.py`. "Secret" berarti header `X-Shared-Secr
 | GET | `/api/runs/{run_id}/events` | Event aktivitas tersimpan untuk satu inspeksi | Ya | Ya | Semua |
 | GET | `/api/schools` | Sekolah penerima | Ya | Ya | Semua |
 | POST | `/api/actions` | Mencatat `fixed`, `dismissed`, `on_hold`, `lift_hold`, atau `close` | Ya | Ya | Semua; `on_hold` dan `lift_hold` khusus supervisor |
-| POST | `/api/notifications/test-alert` | Mengirim pesan uji ke chat Telegram supervisor | Ya | Ya | Supervisor |
-| POST | `/api/notifications/dispatch-report/{batch_id}` | Mengirim laporan ke sekolah untuk batch yang sudah ditutup | Ya | Ya | Supervisor |
+| POST | `/api/notifications/test-alert` | Mengirim contoh peringatan ke chat Telegram supervisor (query opsional `table_name`, `batch_id`) | Ya | Ya | Supervisor |
+| POST | `/api/notifications/dispatch-report/{batch_id}` | Mengirim laporan ke sekolah untuk batch yang sudah ditutup (query opsional `school_id`) | Ya | Ya | Supervisor |
 
 Totalnya 14 path yang dilayani 11 handler. FastAPI juga menyediakan `/docs`, `/redoc`, dan `/openapi.json` (hanya skema, tanpa data).
 
 ## Database dan penyimpanan
 
-### Tabel (Neon Postgres, `backend/app/models.py`)
+Neon Postgres menyimpan delapan tabel, yang didefinisikan sebagai model SQLAlchemy di `backend/app/models.py`. Isi foto ada di object storage; database hanya menyimpan kuncinya.
 
-| Tabel | Isi | Relasi |
+**Sejauh mana terverifikasi.** Tabel di bawah dibaca dari kode model dan kode startup di `backend/app/main.py`. Tabel ini belum dibandingkan dengan database Neon yang berjalan, yang bisa berbeda jika pernah diubah secara manual.
+
+### Ringkasan
+
+| Tabel | Isi | Mendukung |
 | --- | --- | --- |
-| `users` | Akun staf dan supervisor: nama pengguna, hash bcrypt, nama, peran (`kitchen_staff` atau `supervisor`), telepon, chat Telegram | Dirujuk oleh `human_actions.actor_id` |
-| `batches` | Satu batch: menu, nama meja, sekolah tujuan, status, alasan dan pelaku penahanan | Induk dari foto, inspeksi, temuan, tindakan manusia |
-| `photos` | Metadata foto dan kunci objek; isi file ada di object storage | `batch_id` → `batches` |
-| `runs` | Satu inspeksi AI atas satu foto: status, hasil, judul, langkah berikutnya, ketidakpastian, error, penyedia, model | `batch_id` → `batches`, `photo_id` → `photos` |
-| `findings` | Satu temuan dari inspeksi: tingkat, jenis temuan, kotak, penjelasan, status (`open`, `fixed`, `dismissed`), catatan penyelesaian, pelaku, dan waktu | `run_id` → `runs`, `batch_id` → `batches` |
-| `activity_events` | Langkah agen dan tool yang berurutan untuk satu inspeksi | `run_id` → `runs` |
-| `human_actions` | Setiap keputusan staf atau supervisor beserta alasannya | `batch_id` → `batches`, `finding_id` → `findings` (boleh kosong), `actor_id` → `users` |
-| `school_recipients` | Sekolah penerima porsi: nama, kepala sekolah, kontak, jumlah porsi, alamat | Terhubung ke batch melalui string ID (tanpa foreign key) |
+| `users` | Akun staf dan supervisor | Login, peran, pelaku setiap tindakan manusia, chat Telegram supervisor |
+| `batches` | Satu meja atau jalur packing untuk satu sekolah | Status, penahanan, penutupan, menu yang diperiksa Vision |
+| `photos` | Satu foto yang diunggah per inspeksi | Foto pertama dan foto ulang |
+| `runs` | Satu inspeksi AI atas satu foto | Hasil, detail kegagalan, penyedia dan model |
+| `findings` | Satu temuan dari inspeksi | Foto bertanda, keputusan manusia |
+| `activity_events` | Langkah agen dan tool yang berurutan dalam satu inspeksi | "Aktivitas AI tersimpan" |
+| `human_actions` | Setiap keputusan staf atau supervisor beserta alasannya | "Riwayat tindakan manusia", riwayat penahanan |
+| `school_recipients` | Sekolah penerima porsi | Laporan ke sekolah, status per sekolah di dasbor |
 
 ```mermaid
 erDiagram
-  batches ||--o{ photos : has
-  batches ||--o{ runs : has
+  batches ||--o{ photos : "has"
+  batches ||--o{ runs : "has"
   photos ||--o{ runs : "inspected by"
-  runs ||--o{ findings : produces
-  batches ||--o{ findings : has
-  runs ||--o{ activity_events : logs
-  batches ||--o{ human_actions : has
+  runs ||--o{ findings : "produces"
+  batches ||--o{ findings : "has"
+  runs ||--o{ activity_events : "logs"
+  batches ||--o{ human_actions : "has"
   findings |o--o{ human_actions : "may target"
-  users ||--o{ human_actions : performs
+  users ||--o{ human_actions : "performs"
+  school_recipients ||..o{ batches : "target_school_id (no FK)"
 ```
 
-**Startup mengubah skema.** Saat mulai, backend menjalankan `create_all` untuk tabel yang belum ada, empat perintah `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, dan seeding. Tidak ada alat migrasi. Arahkan backend pengembangan ke database terpisah atau branch Neon, jangan sampai ke production secara tidak sengaja.
+### Kolom
 
-**Seeding.** `backend/app/seed.py` membuat akun demo `staff1` (`kitchen_staff`) dan `supervisor1` (`supervisor`) serta tiga sekolah sintetis. Kata sandi diambil dari `SEED_STAFF_PASSWORD` dan `SEED_SUPERVISOR_PASSWORD`; tanpa keduanya, seeding akun dilewati. Akun yang sudah ada tetap memakai kata sandinya, tetapi nomor telepon dan chat Telegram-nya diperbarui dari nilai seed setiap kali backend mulai. `uv run python -m app.seed --reset-passwords` (dari `backend/`) mengganti kedua hash.
+Tipe mengikuti yang dibuat SQLAlchemy di PostgreSQL. `TIMESTAMP` tanpa zona waktu. Nilai bawaan bertanda "app" diisi oleh Python saat insert; "db" berarti nilai bawaan database (`now()`). ID berupa string: dibuat aplikasi untuk batch, foto, inspeksi, temuan, dan tindakan (misalnya `batch_…` atau `fnd_…`), dan ditetapkan di `seed.py` untuk akun dan sekolah demo. Buka sebuah tabel untuk melihat kolomnya.
+
+<details>
+<summary><code>users</code></summary>
+
+| Kolom | Tipe | Null | Bawaan | Catatan |
+| --- | --- | --- | --- | --- |
+| `id` | VARCHAR(50) | Tidak | | Primary key |
+| `username` | VARCHAR(100) | Tidak | | Indeks unik `ix_users_username` |
+| `password_hash` | VARCHAR(255) | Tidak | | bcrypt |
+| `name` | VARCHAR(150) | Tidak | | |
+| `role` | VARCHAR(50) | Tidak | | `kitchen_staff` atau `supervisor` |
+| `phone_number` | VARCHAR(50) | Ya | | |
+| `telegram_chat_id` | VARCHAR(100) | Ya | | Peringatan supervisor |
+| `created_at` | TIMESTAMP | Ya | app, db `now()` | |
+
+</details>
+
+<details>
+<summary><code>batches</code></summary>
+
+| Kolom | Tipe | Null | Bawaan | Catatan |
+| --- | --- | --- | --- | --- |
+| `id` | VARCHAR(50) | Tidak | | Primary key |
+| `menu_id` | VARCHAR(50) | Tidak | app `MBG-01` | |
+| `menu_name` | VARCHAR(200) | Tidak | app `Menu Hari Ini` | Komponen menu yang diperiksa Vision |
+| `table_name` | VARCHAR(100) | Ya | | Ditampilkan sebagai "Sekolah • Meja (N Porsi)" |
+| `target_school_id` | VARCHAR(50) | Ya | | Merujuk `school_recipients.id`; tanpa foreign key |
+| `target_school_name` | VARCHAR(150) | Ya | | |
+| `status` | VARCHAR(50) | Tidak | app `in_review` | `in_review`, `on_hold`, `closed` |
+| `hold_reason` | TEXT | Ya | | Diisi oleh `on_hold`, dikosongkan oleh `lift_hold` |
+| `hold_by` | VARCHAR(50) | Ya | | ID pengguna; tanpa foreign key |
+| `created_at` | TIMESTAMP | Ya | app, db `now()` | Awal penghitung demo 4 jam |
+| `updated_at` | TIMESTAMP | Ya | app; diperbarui aplikasi saat berubah | |
+
+</details>
+
+<details>
+<summary><code>photos</code></summary>
+
+| Kolom | Tipe | Null | Bawaan | Catatan |
+| --- | --- | --- | --- | --- |
+| `id` | VARCHAR(50) | Tidak | | Primary key |
+| `batch_id` | VARCHAR(50) | Tidak | | FK `batches.id`, on delete cascade |
+| `object_key` | VARCHAR(500) | Tidak | | `photos/<batch_id>/<photo_id>.jpg` |
+| `media_type` | VARCHAR(50) | Tidak | app `image/jpeg` | |
+| `file_size_bytes` | INTEGER | Ya | | |
+| `created_at` | TIMESTAMP | Ya | app, db `now()` | |
+
+</details>
+
+<details>
+<summary><code>runs</code></summary>
+
+| Kolom | Tipe | Null | Bawaan | Catatan |
+| --- | --- | --- | --- | --- |
+| `id` | VARCHAR(50) | Tidak | | Primary key |
+| `batch_id` | VARCHAR(50) | Tidak | | FK `batches.id`, on delete cascade |
+| `photo_id` | VARCHAR(50) | Tidak | | FK `photos.id`, on delete cascade |
+| `state` | VARCHAR(50) | Tidak | app `completed` | `completed` atau `failed` |
+| `outcome` | VARCHAR(50) | Ya | | `clean`, `review_required`, `retake_required` |
+| `headline` | VARCHAR(255) | Ya | | |
+| `summary_label` | VARCHAR(128) | Ya | | |
+| `primary_action_label` | VARCHAR(128) | Ya | | |
+| `next_action` | TEXT | Ya | | Langkah berikutnya dari Orchestrator untuk staf |
+| `uncertainty_json` | JSON | Ya | | |
+| `error_json` | JSON | Ya | | Kode error dan detail inspeksi yang gagal |
+| `raw_observation` | JSON | Ya | | Output agen yang sudah divalidasi |
+| `provider` | VARCHAR(50) | Tidak | app `vertex` | |
+| `model` | VARCHAR(100) | Tidak | app `gemini-3.8-flash` | Model yang benar-benar dipakai disimpan per inspeksi |
+| `created_at` | TIMESTAMP | Ya | app, db `now()` | |
+
+</details>
+
+<details>
+<summary><code>findings</code></summary>
+
+| Kolom | Tipe | Null | Bawaan | Catatan |
+| --- | --- | --- | --- | --- |
+| `id` | VARCHAR(50) | Tidak | | Primary key |
+| `run_id` | VARCHAR(50) | Tidak | | FK `runs.id`, on delete cascade |
+| `batch_id` | VARCHAR(50) | Tidak | | FK `batches.id`, on delete cascade |
+| `level` | VARCHAR(50) | Tidak | | `safety` atau `quality` |
+| `concern_type` | VARCHAR(100) | Tidak | | |
+| `box_json` | JSON | Ya | | Kotak ternormalisasi, atau null |
+| `explanation` | TEXT | Tidak | | |
+| `rule_reference` | VARCHAR(150) | Ya | | Misalnya `rule-table-v1:foreign-01` |
+| `evidence_gap` | TEXT | Ya | | |
+| `suggested_action` | TEXT | Tidak | app (teks umum Bahasa Indonesia) | |
+| `status` | VARCHAR(50) | Tidak | app `open` | `open`, `fixed`, `dismissed` |
+| `resolution_note` | TEXT | Ya | | Alasan dari manusia |
+| `resolution_actor_id` | VARCHAR(50) | Ya | | ID pengguna; tanpa foreign key |
+| `resolution_at` | TIMESTAMP | Ya | | |
+
+</details>
+
+<details>
+<summary><code>activity_events</code></summary>
+
+| Kolom | Tipe | Null | Bawaan | Catatan |
+| --- | --- | --- | --- | --- |
+| `id` | VARCHAR(50) | Tidak | | Primary key |
+| `run_id` | VARCHAR(50) | Tidak | | FK `runs.id`, on delete cascade |
+| `sequence` | INTEGER | Tidak | app `1` | Urutan dalam inspeksi |
+| `agent` | VARCHAR(50) | Tidak | app `VisionAgent` | |
+| `step` | VARCHAR(100) | Tidak | app `vision_inspection` | |
+| `parent_step` | VARCHAR(100) | Ya | | |
+| `kind` | VARCHAR(50) | Tidak | app `agent_execution` | Panggilan agen, tool, atau model, validasi, simulasi |
+| `status` | VARCHAR(50) | Tidak | app `completed` | `started`, `completed`, `failed`, `retrying` |
+| `summary` | TEXT | Tidak | | |
+| `references_json` | JSON | Ya | | |
+| `uncertainty` | TEXT | Ya | | |
+| `error` | TEXT | Ya | | |
+| `timestamp` | TIMESTAMP | Ya | app, db `now()` | |
+
+</details>
+
+<details>
+<summary><code>human_actions</code></summary>
+
+| Kolom | Tipe | Null | Bawaan | Catatan |
+| --- | --- | --- | --- | --- |
+| `id` | VARCHAR(50) | Tidak | | Primary key |
+| `batch_id` | VARCHAR(50) | Tidak | | FK `batches.id`, on delete cascade |
+| `finding_id` | VARCHAR(50) | Ya | | FK `findings.id`, on delete set null |
+| `action` | VARCHAR(50) | Tidak | | `fixed`, `dismissed`, `on_hold`, `lift_hold`, `close` |
+| `actor_id` | VARCHAR(50) | Tidak | | FK `users.id` (tanpa aturan delete) |
+| `reason` | TEXT | Tidak | | Tanpa spasi di awal dan akhir, minimal 3 karakter |
+| `created_at` | TIMESTAMP | Ya | app, db `now()` | |
+
+</details>
+
+<details>
+<summary><code>school_recipients</code></summary>
+
+| Kolom | Tipe | Null | Bawaan | Catatan |
+| --- | --- | --- | --- | --- |
+| `id` | VARCHAR(50) | Tidak | | Primary key (`sch_01` sampai `sch_03` di demo) |
+| `name` | VARCHAR(150) | Tidak | | |
+| `principal_name` | VARCHAR(150) | Tidak | | |
+| `phone_number` | VARCHAR(50) | Tidak | | |
+| `telegram_chat_id` | VARCHAR(100) | Ya | | Tidak di-seed; laporan memakai chat dari konfigurasi |
+| `portion_count` | INTEGER | Tidak | app `400` | |
+| `address` | VARCHAR(255) | Ya | | |
+| `created_at` | TIMESTAMP | Ya | app, db `now()` | |
+
+</details>
+
+### Kunci, constraint, dan perilaku delete
+
+- **Indeks.** Hanya primary key dan indeks unik `users.username`. Kolom foreign key tidak memiliki indeks sendiri.
+- **Tanpa pemeriksaan database.** Tidak ada constraint `CHECK` atau tipe enum, sehingga nilai status hanya ditegakkan oleh kode backend dan skema Pydantic.
+- **Cascade.** Menghapus batch akan menghapus foto, inspeksi, temuan, dan tindakan manusianya, baik di database (`ON DELETE CASCADE`) maupun melalui ORM. Menghapus inspeksi akan menghapus temuan dan event aktivitasnya. Menghapus temuan tetap menyimpan tindakan manusianya dan mengosongkan `finding_id`-nya. Aplikasi sendiri tidak pernah menghapus baris.
+- **Tautan ID biasa.** `batches.target_school_id`, `batches.hold_by`, dan `findings.resolution_actor_id` menyimpan ID tanpa foreign key.
+
+### Perubahan skema saat startup dan seeding
+
+**Startup mengubah skema.** Setiap kali backend mulai, berurutan: `create_all` (membuat tabel yang belum ada, tidak pernah mengubah tabel yang ada); empat perintah `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` untuk `users.phone_number`, `users.telegram_chat_id`, `batches.target_school_id`, dan `batches.target_school_name` (kegagalan dicatat sebagai peringatan, tidak menghentikan backend); lalu seeding. Tidak ada alat migrasi dan tidak ada riwayat migrasi. Arahkan backend pengembangan ke database terpisah atau branch Neon, jangan sampai ke production secara tidak sengaja.
+
+**Seeding.** `backend/app/seed.py` hanya mengisi `users` dan `school_recipients`. Seed menambahkan akun demo `staff1` (`kitchen_staff`) dan `supervisor1` (`supervisor`) jika belum ada, serta tiga sekolah sintetis jika belum ada. Kata sandi diambil dari `SEED_STAFF_PASSWORD` dan `SEED_SUPERVISOR_PASSWORD`; tanpa keduanya, seeding akun dilewati. Akun yang sudah ada tetap memakai kata sandinya, tetapi nomor telepon dan chat Telegram-nya diperbarui setiap kali backend mulai jika nilai seed diisi (chat supervisor diambil dari `TELEGRAM_SUPERVISOR_CHAT_ID`, atau `TELEGRAM_CHAT_ID` jika kosong). Sekolah yang sudah ada tidak pernah diubah. `uv run python -m app.seed --reset-passwords` (dari `backend/`) mengganti kedua hash kata sandi.
 
 ### Object storage
 
-Foto disimpan di bucket Neon object storage yang privat melalui API S3 (`backend/app/storage.py`), dengan pola `photos/<batch_id>/<photo_id>.jpg`. Aplikasi tidak pernah membuat objek menjadi publik. URL baca presigned dibuat pada setiap permintaan: 10 menit untuk layar aplikasi, 1 jam untuk laporan Telegram ke sekolah.
+Foto disimpan di bucket Neon object storage yang privat melalui API S3 (`backend/app/storage.py`), dengan pola `photos/<batch_id>/<photo_id>.jpg`. Aplikasi tidak pernah membuat objek menjadi publik. URL baca presigned dibuat pada setiap permintaan: 10 menit untuk layar aplikasi dan peringatan Telegram supervisor, 1 jam untuk laporan Telegram ke sekolah. Tautan foto di peringatan lama berhenti berfungsi setelah 10 menit. Kode memakai API S3 umum melalui pengaturan `STORAGE_*`, sehingga bucket apa pun yang kompatibel S3 dapat dipakai.
 
 ## Deployment
 
@@ -384,7 +551,7 @@ Keduanya memerlukan tindakan panitia. Sampai saat itu, laptop dan tunnel menjadi
 
 ### Laptop dan Cloudflare Quick Tunnel
 
-Quick Tunnel mendapat URL acak baru `https://<kata>.trycloudflare.com` setiap kali dimulai ulang, sehingga Vercel harus diperbarui dan di-redeploy. Operator memakai launcher lokal di luar repositori ini yang mengotomatiskan langkah di bawah: memakai kembali proses yang sehat, hanya menjalankan yang belum berjalan, memperbarui Vercel hanya jika URL berubah, dan memeriksa bahwa Vercel dapat menjangkau backend.
+Quick Tunnel mendapat URL acak baru `https://<kata>.trycloudflare.com` setiap kali dimulai ulang, sehingga Vercel harus diperbarui dan di-redeploy. Operator memakai launcher Windows sekali klik dan skrip penghenti pasangannya, yang disimpan di laptop demo dan tidak di-commit ke repositori ini. Launcher mengotomatiskan langkah di bawah: memeriksa `uv`, `cloudflared`, `backend/.env`, dan koneksi internet; memakai kembali proses yang sehat dan hanya menjalankan yang belum berjalan; memperbarui `BACKEND_URL` dan me-redeploy Vercel jika URL tunnel berubah atau Vercel tidak dapat menjangkau backend; lalu memeriksa rantai, termasuk login staf sungguhan jika kata sandi seed dikonfigurasi. Launcher memerlukan Vercel CLI yang sudah login dan terhubung ke proyek. Skrip penghenti mematikan backend di port 8000 dan semua proses `cloudflared` di mesin tersebut.
 
 Langkah manual yang setara:
 
@@ -403,7 +570,7 @@ vercel redeploy https://dapur-aman.vercel.app --target production
 
 Redeploy memakan waktu sekitar satu menit; selama itu aplikasi tidak dapat menjangkau backend. Untuk memeriksa rantai tanpa menulis data apa pun, kirim login dengan nama pengguna karangan ke `https://dapur-aman.vercel.app/api/staff/login` (dengan header `Origin` yang sesuai): HTTP 401 berarti Vercel menjangkau backend; 502 atau 503 berarti tidak. Hasil 401 tidak membuktikan shared secret cocok, karena backend juga menjawab 401 untuk secret yang salah saat login. Masuk dengan akun asli memeriksa seluruh rantai.
 
-Untuk berhenti, hentikan proses tunnel dan backend (Ctrl+C di setiap terminal). Start berikutnya akan mengganti `BACKEND_URL`.
+Untuk menghentikan pengaturan manual, tekan Ctrl+C di setiap terminal. Restart backend saja tidak mengubah URL tunnel; restart tunnel memerlukan pembaruan `BACKEND_URL` di atas.
 
 ## Konfigurasi
 
@@ -477,7 +644,19 @@ Tidak ada tes otomatis yang memanggil model berbayar, Neon, object storage, atau
 DATABASE_URL=sqlite:///./test-tmp.db BACKEND_SHARED_SECRET=test-secret uv run --with pytest --with httpx pytest -q
 ```
 
-Hasil pada 22 Oktober 2026: 76 lulus. Hapus `test-tmp.db` setelahnya. Tes utama: `tests/agents/test_workflow.py` (alur agen, validasi, dan jalur kegagalan), `tests/agents/test_compliance_tools.py`, `tests/app/test_human_control.py` (AI tidak pernah menyelesaikan temuan atau menutup batch; diperbaiki memerlukan foto ulang), `tests/app/test_notifications.py` (isi laporan, tanpa pengiriman).
+Hasil pada 22 Oktober 2026: 90 lulus (9 file tes). Hapus `test-tmp.db` setelahnya. Isi `DATABASE_URL` seperti contoh: tanpa itu `backend/.env` yang dimuat, sehingga baris perintah inilah yang menjauhkan tes dari database sungguhan. `backend/conftest.py` mengosongkan pengaturan Telegram dan memblokir pengiriman Telegram di setiap tes.
+
+| File | Cakupan |
+| --- | --- |
+| `tests/agents/test_workflow.py` | Alur agen, validasi, jalur kegagalan, timeout, satu kali perbaikan format |
+| `tests/agents/test_compliance_tools.py` | Tool pencarian aturan, bukti, dan riwayat batch |
+| `tests/agents/test_vision_agent.py` | Pembuatan agen Vision dan inputnya |
+| `tests/app/test_human_control.py` | AI tidak pernah menyelesaikan temuan atau menutup batch; diperbaiki memerlukan foto ulang; penahanan dan pelepasan dengan alasan, muat ulang, izin, transisi tidak valid, dan batasan penutupan |
+| `tests/app/test_inspection_api.py` | Penjaga secret dan aktor pada unggahan, konversi JPEG, inspeksi gagal tidak pernah tampil bersih |
+| `tests/app/test_retake_supervisor.py` | Foto ulang, route supervisor, data ringkasan dan detail |
+| `tests/app/test_staff_integration.py` | Route data memerlukan aktor terverifikasi; event inspeksi |
+| `tests/app/test_notifications.py` | Isi dan batas waktu laporan ke sekolah (tanpa pengiriman) |
+| `tests/app/test_telegram_isolation.py` | Pengaturan Telegram kosong dan HTTP diblokir selama tes |
 
 Jangan menjalankan `backend/test_vision.py` atau `backend/test_backend_full.py` sembarangan: keduanya skrip manual yang memanggil layanan langsung, dan `test_vision.py` melakukan panggilan model berbayar.
 
@@ -485,12 +664,14 @@ Jangan menjalankan `backend/test_vision.py` atau `backend/test_backend_full.py` 
 
 | Perintah | Yang diperiksa |
 | --- | --- |
-| `node --test --test-isolation=none tests/session.test.mjs tests/staff-api.test.cjs` | Penandatanganan sesi dan handler BFF terhadap backend tiruan (lihat `frontend/tests/README.md`) |
+| `node --test --test-isolation=none tests/session.test.mjs tests/staff-api.test.cjs tests/labels.test.mjs tests/dashboard-hold.test.cjs` | Penandatanganan sesi; handler BFF terhadap backend uji terisolasi, yang harus sudah berjalan di port 8765 (lihat `frontend/tests/README.md`); label Bahasa Indonesia dan waktu WIB; status serta umpan balik tahan dan lepas di dasbor. 18 lulus pada 22 Oktober 2026. |
 | `bun run lint` | ESLint |
 | `bunx next typegen` lalu `bunx tsc --noEmit` | TypeScript |
 | `bun run build` | Build production |
 
-Untuk alur browser lengkap secara lokal tanpa layanan cloud, `backend/tests/local_mvp_server.py` menjalankan backend in-memory dengan model yang diskenariokan (`uv run --with pytest python tests/local_mvp_server.py` dari `backend/`).
+Untuk alur browser lengkap secara lokal tanpa layanan cloud, `backend/tests/local_mvp_server.py` menjalankan backend in-memory dengan model yang diskenariokan (`uv run --with pytest python tests/local_mvp_server.py` dari `backend/`). Server ini hanya untuk pengujian; jangan pernah menghubungkan frontend production ke server ini.
+
+**Terverifikasi di luar tes otomatis (22 Oktober 2026):** alur supervisor tahan, muat ulang, lepas, dan muat ulang, umpan balik di dekat formulir, serta tampilan staf untuk batch yang ditahan diperiksa di browser pada lebar 360 dan 390 px terhadap backend uji terisolasi, tanpa overflow horizontal. Terhadap production, hanya pemeriksaan baca-saja yang dijalankan: health, kedua login, 401 tanpa shared secret, 403 untuk staf di dasbor supervisor, dan alasan penahanan tersimpan di data batch. Penolakan tahan, lepas, dan tutup tidak diuji pada data production; tes backend mencakupnya.
 
 ## Keamanan dan pengawasan manusia
 
@@ -498,6 +679,8 @@ Untuk alur browser lengkap secara lokal tanpa layanan cloud, `backend/tests/loca
 - **Setiap route data dijaga.** Backend memeriksa shared secret secara constant-time dan mewajibkan aktor yang dikenal; route supervisor memeriksa peran.
 - **BFF memvalidasi input** (ID, tindakan, alasan, jenis dan ukuran foto), menolak POST lintas origin, dan membatasi laju login serta inspeksi.
 - **Kata sandi** disimpan sebagai hash bcrypt. Kata sandi akun demo berasal dari variabel environment dan tidak ada di repositori.
+- **Ganti kredensial yang bocor.** Jika token bot Telegram muncul di log, output tes, atau chat, cabut melalui @BotFather dan perbarui `TELEGRAM_BOT_TOKEN` (token adalah bagian dari URL API Telegram, sehingga log error dapat memuatnya). Jika kata sandi demo tersebar di luar tim, ganti `SEED_STAFF_PASSWORD` dan `SEED_SUPERVISOR_PASSWORD`, lalu jalankan `--reset-passwords`. Jangan pernah menempelkan keduanya di issue, tangkapan layar, atau prompt.
+- **Yang tetap publik.** Tunnel tidak memiliki autentikasi sendiri: `/health` dan dokumentasi FastAPI (`/docs`, `/redoc`, `/openapi.json`, hanya skema) dapat diakses tanpa secret; setiap route `/api/*` memerlukannya.
 - **Foto bersifat privat** dan ditampilkan melalui URL presigned berumur pendek.
 - **Manusia yang memutuskan.** Agen hanya dapat membuat inspeksi, temuan (berstatus `open`), dan event. Memperbaiki, mengabaikan, menahan, menutup, dan melaporkan adalah tindakan manusia dengan alasan dan pelaku yang tercatat, ditegakkan oleh backend dan dicakup oleh tes.
 - **Kegagalan terlihat.** Inspeksi yang gagal atau melewati batas waktu ditampilkan sebagai gagal, tidak pernah sebagai hasil bersih.
@@ -509,12 +692,20 @@ Untuk alur browser lengkap secara lokal tanpa layanan cloud, `backend/tests/loca
 - **Waktu penyimpanan dihitung dari foto pertama.** Penghitung waktu, footer dasbor, dan batas waktu di laporan ke sekolah menghitung batas demo 4 jam dari foto pertama batch, bukan dari selesai memasak, sehingga waktu sebenarnya sejak selesai memasak bisa lebih lama.
 - **Semua pengguna yang sudah masuk dapat menutup batch.** Laporan ke sekolah hanya dikirim otomatis saat supervisor yang menutup.
 - **Penahanan hanya mencegah penutupan.** Penahanan tidak mencegah foto baru atau keputusan atas temuan.
+- **Beberapa perubahan status tidak diblokir backend.** UI tidak menawarkannya, tetapi API menerima:
+  - penahanan pada batch yang sudah ditutup, atau `lift_hold` pada batch yang tidak ditahan;
+  - menutup batch yang sudah ditutup (penutupan ulang oleh supervisor mengirim laporan ke sekolah lagi);
+  - `fixed` atau `dismissed` pada temuan yang sudah diselesaikan, dan foto ulang pada batch yang sudah ditutup.
+
+  Syarat penutupan "inspeksi terakhir tidak meminta foto ulang" hanya diperiksa di UI. Pemeriksaan status tidak memakai row lock, sehingga dua tindakan bersamaan dapat saling mendahului.
+- **Pengiriman Telegram tidak dikonfirmasi.** Peringatan dikirim di latar belakang dan tidak diulang; kegagalan hanya dicatat di log. Endpoint laporan tetap mengembalikan sukses meskipun Telegram belum dikonfigurasi atau menolak pesan, dan UI tetap menyatakan laporan terkirim.
+- **Timeout model.** Setiap panggilan model dibatasi 45 detik dan setiap inspeksi 120 detik. Panggilan Vertex AI yang lambat (misalnya `DEADLINE_EXCEEDED` pada tahap Compliance, terjadi pada 22 Oktober 2026) mengakhiri inspeksi sebagai gagal dengan error yang dapat diulang. Tidak ada pengulangan otomatis: staf mengulang dengan foto baru di batch yang sama.
 - **Hanya Vision yang melihat foto.** Agen Orchestrator dan Compliance bekerja dari teks Vision.
 - **Hosting demo.** Backend bergantung pada satu laptop dan Quick Tunnel; setiap restart tunnel memerlukan pembaruan Vercel dan sekitar satu menit downtime untuk redeploy. Cloud Run terhambat IAM.
 - **Batasan di memori.** Pembatasan laju BFF dan penjaga satu inspeksi direset saat restart dan tidak dibagi antar-instance Vercel. Sesi tidak dapat dicabut sebelum kedaluwarsa.
 - **Tidak ada migrasi.** Perubahan skema berjalan saat backend mulai.
 - **Verifikasi QR belum diimplementasikan.**
-- `backend/agents/vision/agent.py` dan `prompts.py` adalah jalur Vision lama yang tidak dipakai oleh workflow inspeksi.
+- `backend/agents/vision/agent.py` dan `prompts.py` adalah jalur Vision lama: masih diimpor bersama paketnya, tetapi tidak pernah dijalankan oleh workflow inspeksi.
 
 ## Pemecahan masalah
 
