@@ -549,7 +549,7 @@ export default function SupervisorDashboardPage() {
             {/* 5. DUA KOLOM: SAFETY FEED & BATCH MANAGEMENT */}
             <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
               {/* KOLOM KIRI: SAFETY FEED */}
-              <section aria-label="Linimasa Temuan Keamanan" className="rounded-2xl border border-rule bg-paper p-5">
+              <section aria-label="Linimasa Temuan Keamanan" className="min-w-0 rounded-2xl border border-rule bg-paper p-5">
                 <div className="flex items-center justify-between border-b border-rule pb-3">
                   <div>
                     <h2 className="font-extrabold text-ink">Linimasa temuan keamanan</h2>
@@ -603,7 +603,7 @@ export default function SupervisorDashboardPage() {
               </section>
 
               {/* KOLOM KANAN: MANAJEMEN BATCH */}
-              <section aria-label="Manajemen Batch" className="rounded-2xl border border-rule bg-paper p-5">
+              <section aria-label="Manajemen Batch" className="min-w-0 rounded-2xl border border-rule bg-paper p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rule pb-3">
                   <div>
                     <h2 className="font-extrabold text-ink">Manajemen status batch</h2>
@@ -611,7 +611,7 @@ export default function SupervisorDashboardPage() {
                   </div>
 
                   {/* Filter Tabs */}
-                  <div className="flex items-center gap-1 rounded-xl bg-ground p-1 text-xs">
+                  <div className="flex flex-wrap items-center gap-1 rounded-xl bg-ground p-1 text-xs">
                     {(
                       [
                         { id: "all", label: "Semua" },
