@@ -10,10 +10,10 @@ const CONCERNS = [
 ];
 
 const HANDS = [
-  { who: "Staff", text: "Snap each table or rack as it is packed. Messy is fine: any angle, any count." },
-  { who: "Vision + rules agents", text: "Ring every bad-looking spot, check it against the day's menu and the food-safety rules." },
-  { who: "Staff", text: "Fix and retake, or dismiss with a reason. Never a tray count, never an auto-clear." },
-  { who: "Supervisor", text: "Sees every safety finding, how fast it was fixed, and can hold a batch." },
+  { id: "snap", who: "Staff", text: "Snap each table or rack as it is packed. Messy is fine: any angle, any count." },
+  { id: "agents", who: "Vision + rules agents", text: "Ring every bad-looking spot, check it against the day's menu and the food-safety rules." },
+  { id: "fix", who: "Staff", text: "Fix and retake, or dismiss with a reason. Never a tray count, never an auto-clear." },
+  { id: "supervisor", who: "Supervisor", text: "Sees every safety finding, how fast it was fixed, and can hold a batch." },
 ];
 
 export default function Home() {
@@ -60,7 +60,7 @@ export default function Home() {
             <h2 className="mt-10 text-2xl font-extrabold">One photo, four hands</h2>
             <ol className="mt-4 grid gap-5 md:grid-cols-4">
                 {HANDS.map(hand => (
-                    <li key={hand.who} className="border-t-2 border-brand pt-3">
+                    <li key={hand.id} className="border-t-2 border-brand pt-3">
                         <b className="block">{hand.who}</b>
                         <span className="text-sm text-ink2">{hand.text}</span>
                     </li>

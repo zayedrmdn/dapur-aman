@@ -34,8 +34,7 @@ export function matchingRows(rows: BatchRow[], query: string): BatchRow[] {
   return rows.filter(row => matchesSearch(row, query));
 }
 
-/** The rows to show: every match while searching, otherwise the newest ones. */
-export function visibleRows(filtered: BatchRow[], query: string, expanded: boolean, recentCount: number): BatchRow[] {
-  if (expanded || query.trim()) return filtered;
-  return filtered.slice(0, recentCount);
+/** The picker options: the newest rows until a search runs, then up to `limit` matches. */
+export function pickerRows(filtered: BatchRow[], query: string, recentCount: number, limit: number): BatchRow[] {
+  return filtered.slice(0, query.trim() ? limit : recentCount);
 }

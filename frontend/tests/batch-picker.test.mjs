@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchingRows, newestFirst, visibleRows } from "../lib/batch-list.ts";
+import { matchingRows, newestFirst, pickerRows } from "../lib/batch-list.ts";
 
 const row = (batch_id, table_name, created_at, school_name = null) => ({ batch_id, table_name, summary_label: "label", status: "review_required", created_at, school_name });
 
@@ -27,14 +27,10 @@ test("the search finds a batch by meja, school or id", () => {
   assert.deepEqual(matchingRows(rows, "tidak ada"), []);
 });
 
-test("only the newest batches show until the list is expanded or a search runs", () => {
-  const filtered = matchingRows(rows, "");
-  assert.deepEqual(visibleRows(filtered, "", false, 3).length, 3);
-  assert.deepEqual(visibleRows(filtered, "", true, 3).length, 3);
-  const many = [...rows, row("batch_four", "Meja 4", "2026-10-21T09:00:00Z")];
-  const manyFiltered = matchingRows(newestFirst(many), "");
-  assert.deepEqual(visibleRows(manyFiltered, "", false, 3).map(item => item.batch_id), ["batch_new", "batch_middle", "batch_old"]);
-  assert.deepEqual(visibleRows(manyFiltered, "", true, 3).length, 4);
-  const searched = matchingRows(many, "meja");
-  assert.deepEqual(visibleRows(searched, "meja", false, 3).length, 4);
+test("the picker offers the newest batches, then any match once a search runs", () => {
+  const many = [...rows, row("batch_four", "Meja 4", "2026-10-09T09:00:00Z")];
+  const sorted = newestFirst(many);
+  assert.deepEqual(pickerRows(matchingRows(sorted, ""), "", 3, 8).map(item => item.batch_id), ["batch_new", "batch_middle", "batch_old"]);
+  assert.deepEqual(pickerRows(matchingRows(sorted, "meja 4"), "meja 4", 3, 8).map(item => item.batch_id), ["batch_four"]);
+  assert.deepEqual(pickerRows(matchingRows(sorted, "meja"), "meja", 3, 2).length, 2);
 });
