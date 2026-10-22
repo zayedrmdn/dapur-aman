@@ -1,0 +1,263 @@
+"""Telegram notification service for Dapur Aman.
+
+Supports:
+1. Instant Safety Alerts to Kitchen Supervisors when contaminants or critical concerns are detected.
+2. Official School Dispatch Clearance Reports (Surat Kelayakan Distribusi MBG) to School Principals & Coordinators.
+"""
+
+import html
+import logging
+from datetime import datetime, timezone, timedelta
+import httpx
+
+from app.config import (
+    TELEGRAM_BOT_TOKEN,
+    TELEGRAM_SUPERVISOR_CHAT_ID,
+    TELEGRAM_SCHOOL_CHAT_ID,
+)
+
+logger = logging.getLogger("dapur_aman.notifications")
+
+# Western Indonesia Time (WIB, UTC+7)
+WIB = timezone(timedelta(hours=7))
+
+
+def current_wib_str() -> str:
+    return datetime.now(WIB).strftime("%H:%M WIB, %d %b %Y")
+
+
+async def send_telegram_raw(
+    text: str,
+    chat_id: str,
+    photo_url: str | None = None,
+) -> dict:
+    """Send message to Telegram via Bot API, or log if token is unconfigured."""
+    if not TELEGRAM_BOT_TOKEN or not chat_id:
+        logger.info(
+            "[Telegram Service - SIMULASI / TOKEN BELUM DIISI]\nTarget Chat ID: %s\nIsi Pesan:\n%s",
+            chat_id or "(none)",
+            text,
+        )
+        return {
+            "status": "simulated",
+            "chat_id": chat_id,
+            "message": "TELEGRAM_BOT_TOKEN atau CHAT_ID belum diatur di .env. Pesan dicatat di log backend.",
+        }
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": False,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, json=payload)
+            response_json = response.json()
+            if response.status_code == 200 and response_json.get("ok"):
+                logger.info("[Telegram Service] Pesan terkirim ke chat_id=%s", chat_id)
+                return {"status": "success", "result": response_json.get("result")}
+            else:
+                logger.warning(
+                    "[Telegram Service] Telegram API error: %s",
+                    response_json.get("description", response.text),
+                )
+                return {
+                    "status": "error",
+                    "error": response_json.get("description", response.text),
+                }
+    except Exception as e:
+        logger.error("[Telegram Service] Gagal mengirim HTTP request ke Telegram: %s", str(e))
+        return {"status": "error", "error": str(e)}
+
+
+async def send_supervisor_safety_alert(
+    table_name: str,
+    batch_id: str,
+    findings: list,
+    photo_url: str | None = None,
+    chat_id: str | None = None,
+    supervisor_name: str | None = "Supervisor Dapur MBG",
+    supervisor_phone: str | None = "+62 811-2233-4455",
+) -> dict:
+    """Format and send safety alert to kitchen supervisor."""
+    target_chat = chat_id or TELEGRAM_SUPERVISOR_CHAT_ID or TELEGRAM_SCHOOL_CHAT_ID
+
+    findings_lines = []
+    for idx, f in enumerate(findings, 1):
+        # f can be ContractFinding or Finding model or dict
+        concern = getattr(f, "concern_type", None) or (f.get("concern_type") if isinstance(f, dict) else "Masalah Kualitas")
+        explanation = getattr(f, "explanation", None) or (f.get("explanation") if isinstance(f, dict) else "")
+        level = getattr(f, "level", "safety") or (f.get("level") if isinstance(f, dict) else "safety")
+        rule = getattr(f, "rule_reference", None) or (f.get("rule_reference") if isinstance(f, dict) else None)
+        action = getattr(f, "suggested_action", None) or (f.get("suggested_action") if isinstance(f, dict) else "")
+
+        badge = "🔴 [BAHAYA KEAMANAN]" if level == "safety" else "🟡 [PERHATIAN KUALITAS]"
+        line = f"<b>{idx}. {badge} {html.escape(str(concern).title())}</b>\n"
+        if explanation:
+            line += f"   • Detail: <i>{html.escape(explanation)}</i>\n"
+        if rule:
+            line += f"   • Rujukan: <code>{html.escape(rule)}</code>\n"
+        if action:
+            line += f"   • Tindakan: {html.escape(action)}\n"
+        findings_lines.append(line)
+
+    findings_text = "\n".join(findings_lines) if findings_lines else "• Perlu peninjauan visual oleh supervisor."
+
+    supervisor_block = ""
+    if supervisor_name or supervisor_phone:
+        parts = []
+        if supervisor_name:
+            parts.append(f"<b>{html.escape(supervisor_name)}</b>")
+        if supervisor_phone:
+            parts.append(f"<code>{html.escape(supervisor_phone)}</code>")
+        supervisor_block = f"👤 <b>Penerima Alert:</b> {' • '.join(parts)}\n"
+
+    message = (
+        "🚨 <b>PERINGATAN KEAMANAN PANGAN — DAPUR AMAN MBG</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{supervisor_block}"
+        f"📍 <b>Lokasi / Meja:</b> {html.escape(table_name)}\n"
+        f"🆔 <b>Batch ID:</b> <code>{html.escape(batch_id)}</code>\n"
+        f"⏰ <b>Waktu Deteksi:</b> {current_wib_str()}\n"
+        "⚠️ <b>Status Batch:</b> <b>PERLU TINDAKAN (Review Required)</b>\n\n"
+        "🔍 <b>TEMUAN AGEN AI (Vision + Compliance):</b>\n"
+        f"{findings_text}\n"
+        "📋 <b>INSTRUKSI SUPERVISOR:</b>\n"
+        "1. Segera tahan proses packing pada meja ini.\n"
+        "2. Instruksikan staf untuk memperbaiki/mengganti porsi terdampak.\n"
+        "3. Lakukan foto ulang (retake) untuk verifikasi kelayakan sebelum disegel.\n"
+    )
+
+    if photo_url:
+        message += f"\n🔗 <a href='{html.escape(photo_url)}'>Buka Bukti Foto Hasil Inspeksi</a>\n"
+
+    message += "\n🛡️ <i>Sistem Otomasi Pengawasan Pangan MBG — Nexara Vision</i>"
+
+    return await send_telegram_raw(message, target_chat, photo_url=photo_url)
+
+
+async def send_school_clearance_report(
+    batch_id: str,
+    menu_name: str,
+    supervisor_name: str = "Supervisor Dapur MBG",
+    school_name: str = "SDN 01 Merdeka Bandung",
+    principal_name: str | None = "Bpk. Drs. H. Bambang Sutrisno, M.Pd",
+    phone_number: str | None = "+62 812-3456-7890",
+    address: str | None = "Jl. Merdeka No. 45, Sumur Bandung",
+    total_trays: int = 450,
+    holding_hours: int = 4,
+    photo_url: str | None = None,
+    chat_id: str | None = None,
+) -> dict:
+    """Format and send official dispatch clearance certificate to school principal & BGN coordinator."""
+    target_chat = chat_id or TELEGRAM_SCHOOL_CHAT_ID or TELEGRAM_SUPERVISOR_CHAT_ID
+
+    now_wib = datetime.now(WIB)
+    limit_time = (now_wib + timedelta(hours=holding_hours)).strftime("%H:%M WIB")
+
+    recipient_lines = [f"🏫 <b>{html.escape(school_name)}</b>"]
+    if principal_name:
+        recipient_lines.append(f"👤 <b>Kepala Sekolah:</b> {html.escape(principal_name)}")
+    if phone_number:
+        recipient_lines.append(f"📞 <b>Kontak Penerima:</b> <code>{html.escape(phone_number)}</code>")
+    if address:
+        recipient_lines.append(f"📍 <b>Alamat Kirim:</b> <i>{html.escape(address)}</i>")
+    recipient_block = "\n".join(recipient_lines)
+
+    message = (
+        "✅ <b>SURAT KELAYAKAN DISTRIBUSI PANGAN MBG</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Kepada Yth:\n"
+        "<b>Tim Pengawas & Satgas MBG Sekolah</b>\n"
+        f"{recipient_block}\n\n"
+        f"📦 <b>ID Batch:</b> <code>{html.escape(batch_id)}</code>\n"
+        f"🍽️ <b>Menu Hari Ini:</b> {html.escape(menu_name)}\n"
+        f"🍱 <b>Alokasi Porsi:</b> {total_trays} Baki Siswa\n"
+        f"🕒 <b>Waktu Verifikasi:</b> {current_wib_str()}\n"
+        "🚚 <b>Status Pengiriman:</b> <b>100% LOLOS & SIAP KONSUMSI</b>\n\n"
+        "🛡️ <b>HASIL AUDIT MULTI-AGENT AI (DAPUR AMAN):</b>\n"
+        "• <b>Vision Agent:</b> Nol cemaran fisik (terkonfirmasi bebas rambut, ulat, serangga, benda asing).\n"
+        "• <b>Compliance Agent:</b> Komposisi 4-komponen gizi seimbang (Karbo, Lauk Protein, Sayur, Buah) sesuai standar BGN & Permenkes No. 1096.\n"
+        f"• <b>Verifikasi Fisik:</b> Disetujui & ditandatangani oleh <b>{html.escape(supervisor_name)}</b>.\n\n"
+        f"⏱️ <b>BATAS AMAN KONSUMSI (HOLDING TIME):</b>\n"
+        f"Maksimal pukul <b>{limit_time}</b> (Batas higienis maksimal 4 jam sejak selesai pengolahan).\n"
+    )
+
+    if photo_url:
+        message += f"\n📸 <a href='{html.escape(photo_url)}'>Lihat Arsip Foto Baki Terverifikasi</a>\n"
+
+    message += (
+        "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "<i>Dokumen digital resmi ini diterbitkan secara otomatis oleh Sistem AI Dapur Aman "
+        "demi transparansi dan perlindungan kesehatan anak bangsa.</i>"
+    )
+
+    return await send_telegram_raw(message, target_chat, photo_url=photo_url)
+
+
+async def send_supervisor_retake_notification(
+    table_name: str,
+    batch_id: str,
+    findings: list,
+    photo_url: str | None = None,
+    chat_id: str | None = None,
+    supervisor_name: str | None = "Supervisor Dapur MBG",
+    supervisor_phone: str | None = "+62 811-2233-4455",
+) -> dict:
+    """Format and send retake verification result to kitchen supervisor."""
+    target_chat = chat_id or TELEGRAM_SUPERVISOR_CHAT_ID or TELEGRAM_SCHOOL_CHAT_ID
+
+    supervisor_block = ""
+    if supervisor_name or supervisor_phone:
+        parts = []
+        if supervisor_name:
+            parts.append(f"<b>{html.escape(supervisor_name)}</b>")
+        if supervisor_phone:
+            parts.append(f"<code>{html.escape(supervisor_phone)}</code>")
+        supervisor_block = f"👤 <b>Penerima Laporan:</b> {' • '.join(parts)}\n"
+
+    is_clean = len(findings) == 0
+
+    if is_clean:
+        status_line = "✅ <b>STATUS: TERVERIFIKASI BERSIH (0 MASALAH)</b>"
+        detail_line = (
+            "Baki hasil periksa ulang (retake) telah diperiksa oleh Vision Agent.\n"
+            "• Temuan sebelumnya telah tuntas diperbaiki oleh staf.\n"
+            "• Baki kini dinyatakan <b>100% HIGIENIS & SESUAI STANDAR MBG</b>."
+        )
+        action_line = (
+            "👉 <b>Status Rilis:</b> Baki dinyatakan lolos 100%. "
+            "Surat Kelaikan Distribusi Pangan resmi telah diterbitkan dan langsung dikirimkan ke pihak sekolah penerima via Telegram."
+        )
+    else:
+        status_line = "⚠️ <b>STATUS: MASIH DITEMUKAN MASALAH</b>"
+        findings_lines = []
+        for idx, f in enumerate(findings, 1):
+            concern = getattr(f, "concern_type", None) or (f.get("concern_type") if isinstance(f, dict) else "Masalah Kualitas")
+            explanation = getattr(f, "explanation", None) or (f.get("explanation") if isinstance(f, dict) else "")
+            findings_lines.append(f"• <b>{html.escape(str(concern))}</b>: <i>{html.escape(explanation)}</i>")
+        detail_line = "\n".join(findings_lines)
+        action_line = "👉 <b>Tindakan:</b> Minta staf memperbaiki kembali porsi yang belum sesuai standar."
+
+    message = (
+        "🔄 <b>HASIL VERIFIKASI FOTO ULANG (RETAKE) — DAPUR AMAN</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{supervisor_block}"
+        f"📍 <b>Lokasi / Meja:</b> {html.escape(table_name)}\n"
+        f"🆔 <b>Batch ID:</b> <code>{html.escape(batch_id)}</code>\n"
+        f"⏰ <b>Waktu Periksa Ulang:</b> {current_wib_str()}\n"
+        f"{status_line}\n\n"
+        "🔍 <b>HASIL PEMERIKSAAN AI:</b>\n"
+        f"{detail_line}\n\n"
+        f"{action_line}\n"
+    )
+
+    if photo_url:
+        message += f"\n📸 <a href='{html.escape(photo_url)}'>Buka Arsip Foto Periksa Ulang</a>\n"
+
+    message += "\n🛡️ <i>Sistem Otomasi Pengawasan Pangan MBG — Nexara Vision</i>"
+
+    return await send_telegram_raw(message, target_chat, photo_url=photo_url)

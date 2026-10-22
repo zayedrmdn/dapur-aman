@@ -259,11 +259,22 @@ def get_vision_agent() -> VisionAgent:
 
 
 async def inspect_photo(
-    photo_bytes: bytes,
+    photo_bytes: bytes | None = None,
     table_name: str = "Table 1",
     menu_items: list[str] | None = None,
     content_type: str = "image/jpeg",
+    photo: Any = None,
+    menu: Any = None,
 ) -> InspectionResponseSchema:
+    if photo is not None:
+        photo_bytes = getattr(photo, "content", photo_bytes)
+        content_type = getattr(photo, "media_type", content_type)
+    if menu is not None:
+        menu_items = getattr(menu, "items", None) or [getattr(menu, "name", "MBG menu")]
+
+    if not photo_bytes:
+        raise ValueError("photo_bytes or photo object is required")
+
     agent = get_vision_agent()
     return await agent.inspect(
         photo_bytes=photo_bytes,

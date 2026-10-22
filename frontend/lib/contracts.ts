@@ -42,3 +42,77 @@ export function time(value: string) {
   const normalized = /(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value}Z`;
   return new Date(normalized).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
 }
+
+export type SafetyFeedItem = {
+  finding_id: string;
+  batch_id: string;
+  run_id?: string | null;
+  photo_id?: string | null;
+  thumbnail_url?: string | null;
+  title: string;
+  subtitle: string;
+  status: "open" | "fixed" | "dismissed";
+  icon_type: string;
+  duration_min: number;
+  duration_label: string;
+  resolution_note?: string | null;
+};
+
+export type ActiveConcern = {
+  finding_id: string;
+  batch_id: string;
+  run_id?: string | null;
+  photo_id?: string | null;
+  photo_url?: string | null;
+  title: string;
+  detail: string;
+  level: string;
+  subtitle: string;
+  assigned_staff: string;
+  box: { x_min: number; y_min: number; x_max: number; y_max: number } | null;
+  hold_action_label: string;
+  helper_text?: string;
+};
+
+export type BatchListItem = {
+  batch_id: string;
+  menu_name: string;
+  photos_count: number;
+  subtitle: string;
+  status: "closed" | "packing" | "finding_open" | "on_hold";
+  badge_label: string;
+  badge_color: string;
+};
+
+export type SchoolSummary = {
+  id: string;
+  name: string;
+  principal_name: string;
+  phone_number: string;
+  address: string;
+  target_portions: number;
+  cleared_batches: number;
+  in_progress_batches: number;
+  status: "ready" | "in_progress" | "standby";
+};
+
+export type SupervisorDashboardData = {
+  supervisor_name: string;
+  kitchen_name: string;
+  date_str: string;
+  headline: string;
+  is_supervisor: boolean;
+  stats: {
+    total_safety: number;
+    fixed: number;
+    dismissed: number;
+    open: number;
+  };
+  total_portions_cleared: number;
+  clean_pass_rate: number;
+  active_concern: ActiveConcern | null;
+  safety_feed: SafetyFeedItem[];
+  batches: BatchListItem[];
+  schools: SchoolSummary[];
+};
+

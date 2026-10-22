@@ -31,6 +31,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     name = Column(String(150), nullable=False)
     role = Column(String(50), nullable=False)  # "kitchen_staff" or "supervisor"
+    phone_number = Column(String(50), nullable=True)  # e.g. "+62 811-2233-4455"
+    telegram_chat_id = Column(String(100), nullable=True)  # Telegram Chat ID untuk notifikasi
     created_at = Column(DateTime, default=utc_now, server_default=func.now())
 
 
@@ -43,6 +45,8 @@ class Batch(Base):
     menu_id = Column(String(50), nullable=False, default="MBG-01")
     menu_name = Column(String(200), nullable=False, default="Menu Hari Ini")
     table_name = Column(String(100), nullable=True)
+    target_school_id = Column(String(50), nullable=True)
+    target_school_name = Column(String(150), nullable=True)
     status = Column(String(50), nullable=False, default="in_review")  # "in_review", "on_hold", "closed"
     hold_reason = Column(Text, nullable=True)
     hold_by = Column(String(50), nullable=True)
@@ -159,3 +163,18 @@ class HumanAction(Base):
     batch = relationship("Batch", back_populates="actions")
     finding = relationship("Finding", back_populates="actions")
     actor = relationship("User")
+
+
+class SchoolRecipient(Base):
+    """Target school recipient for MBG food distribution."""
+
+    __tablename__ = "school_recipients"
+
+    id = Column(String(50), primary_key=True)  # e.g. "sch_01"
+    name = Column(String(150), nullable=False)  # "SDN 01 Merdeka Bandung"
+    principal_name = Column(String(150), nullable=False)  # "Bpk. Drs. H. Bambang Sutrisno, M.Pd"
+    phone_number = Column(String(50), nullable=False)  # "+62 812-3456-7890"
+    telegram_chat_id = Column(String(100), nullable=True)  # Optional specific Telegram chat ID
+    portion_count = Column(Integer, nullable=False, default=400)
+    address = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=utc_now, server_default=func.now())

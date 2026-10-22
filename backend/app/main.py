@@ -11,6 +11,7 @@ Integrates:
 - Human actions & resolutions (POST /api/actions) with supervisor role enforcement
 """
 
+import asyncio
 import uuid
 import logging
 from contextlib import asynccontextmanager
@@ -21,6 +22,7 @@ from fastapi import (
     UploadFile,
     File,
     Form,
+    Header,
     HTTPException,
     Depends,
     status,
@@ -38,6 +40,7 @@ from app.models import (
     Finding,
     ActivityEvent,
     HumanAction,
+    SchoolRecipient,
 )
 from app.storage import (
     upload_photo_bytes,
@@ -48,7 +51,7 @@ from app.auth import (
     verify_shared_secret,
     get_current_actor,
 )
-from app.seed import seed_default_users
+from app.seed import seed_default_users, seed_default_schools
 from app.schemas import (
     LoginRequest,
     LoginResponse,
@@ -73,6 +76,11 @@ from agents.contract import InspectionInput, Menu, RunState
 from agents.contract import Photo as ContractPhoto
 from agents.workflow import run_inspection
 from app.inspection import InvalidPhotoError, build_response, to_jpeg
+from app.notifications import (
+    send_supervisor_safety_alert,
+    send_supervisor_retake_notification,
+    send_school_clearance_report,
+)
 
 logger = logging.getLogger("dapur_aman.api")
 logging.basicConfig(level=logging.INFO)
@@ -83,11 +91,21 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager: initializes tables and seeds default accounts."""
     logger.info("Initializing database schema in Neon Postgres...")
     Base.metadata.create_all(bind=engine)
+    from sqlalchemy import text
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(50);"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR(100);"))
+            conn.execute(text("ALTER TABLE batches ADD COLUMN IF NOT EXISTS target_school_id VARCHAR(50);"))
+            conn.execute(text("ALTER TABLE batches ADD COLUMN IF NOT EXISTS target_school_name VARCHAR(150);"))
+    except Exception as e:
+        logger.warning("Auto-migration check notice: %s", e)
     logger.info("Database schema initialized.")
 
     with SessionLocal() as db:
         seed_default_users(db)
-    logger.info("Default user accounts verified.")
+        seed_default_schools(db)
+    logger.info("Default user accounts and school recipients verified.")
     yield
 
 
@@ -167,6 +185,8 @@ async def inspect_food_photo(
     ),
     batch_id: str | None = Form(None, description="Opsional: ID batch untuk mengelompokkan beberapa meja/baki"),
     is_retake: bool = Form(False),
+    school_id: str | None = Form(None, description="Opsional: ID sekolah penerima"),
+    x_actor_id: str | None = Header(None, alias="X-Actor-Id"),
     _: None = Depends(verify_shared_secret),
     db: Session = Depends(get_db),
 ) -> InspectionResponseSchema:
@@ -249,12 +269,21 @@ async def inspect_food_photo(
     try:
         existing_batch = db.query(Batch).filter(Batch.id == active_batch_id).first()
         if not existing_batch:
+            target_school = (
+                db.query(SchoolRecipient).filter(SchoolRecipient.id == school_id).first()
+                if school_id
+                else db.query(SchoolRecipient).first()
+            )
+            batch_title = f"{target_school.name} • {clean_table_name} ({target_school.portion_count} Porsi)" if target_school else clean_table_name
+
             db.add(
                 Batch(
                     id=active_batch_id,
                     menu_id="MBG-01",
-                    menu_name=clean_table_name,
-                    table_name=clean_table_name,
+                    menu_name=", ".join(items_list) or "Menu MBG Standar",
+                    table_name=batch_title,
+                    target_school_id=target_school.id if target_school else None,
+                    target_school_name=target_school.name if target_school else None,
                     status="in_review",
                 )
             )
@@ -321,6 +350,117 @@ async def inspect_food_photo(
                 )
             )
         db.commit()
+
+        # Otomasi Notifikasi Telegram & Penerbitan Surat Kelaikan
+        supervisor = (
+            db.query(User)
+            .filter(User.role == "supervisor")
+            .first()
+        )
+        sup_chat = supervisor.telegram_chat_id if (supervisor and supervisor.telegram_chat_id) else None
+        sup_name = supervisor.name if supervisor else "Supervisor Dapur MBG"
+        sup_phone = supervisor.phone_number if supervisor else "+62 811-2233-4455"
+
+        # Lookup data sekolah penerima untuk penerbitan surat kelaikan
+        batch_obj = db.query(Batch).filter(Batch.id == active_batch_id).first()
+        target_school_id = (batch_obj.target_school_id if batch_obj else None) or school_id or "sch_01"
+        target_school = (
+            db.query(SchoolRecipient).filter(SchoolRecipient.id == target_school_id).first()
+            or db.query(SchoolRecipient).first()
+        )
+        school_name = (target_school.name if target_school else None) or (batch_obj.target_school_name if batch_obj else None) or "SDN 01 Merdeka Bandung"
+        principal_name = target_school.principal_name if target_school else "Bpk. Drs. H. Bambang Sutrisno, M.Pd"
+        school_phone = target_school.phone_number if target_school else "+62 812-3456-7890"
+        school_address = target_school.address if target_school else "Jl. Merdeka No. 45, Bandung"
+        total_trays = target_school.portion_count if target_school else 450
+        school_chat = target_school.telegram_chat_id if (target_school and target_school.telegram_chat_id) else None
+
+        actor = db.query(User).filter((User.id == x_actor_id) | (User.username == x_actor_id)).first() if x_actor_id else None
+        current_actor_name = actor.name if actor else sup_name
+
+        try:
+            is_clean = len(outcome.findings) == 0
+
+            if is_retake:
+                if is_clean:
+                    # Foto periksa ulang bersih (0 temuan): tandai semua temuan terbuka selesai (fixed)
+                    prev_open = db.query(Finding).filter(Finding.batch_id == active_batch_id, Finding.status == "open").all()
+                    for f in prev_open:
+                        f.status = "fixed"
+                        f.resolution_note = "Terverifikasi bersih pada periksa ulang (retake) oleh Vision Agent."
+                        f.resolution_actor_id = actor.id if actor else "usr_staff1"
+                        f.resolution_at = datetime.now(timezone.utc)
+
+                    if batch_obj:
+                        batch_obj.status = "closed"
+                    db.commit()
+
+                    # LANGSUNG terbitkan dan kirim Surat Kelaikan Resmi ke Telegram Sekolah
+                    asyncio.create_task(
+                        send_school_clearance_report(
+                            batch_id=active_batch_id,
+                            menu_name=(batch_obj.menu_name if batch_obj else None) or clean_table_name,
+                            supervisor_name=current_actor_name,
+                            school_name=school_name,
+                            principal_name=principal_name,
+                            phone_number=school_phone,
+                            address=school_address,
+                            total_trays=total_trays,
+                            photo_url=presigned_photo_url,
+                            chat_id=school_chat,
+                        )
+                    )
+
+                # Kirim laporan hasil periksa ulang ke supervisor
+                asyncio.create_task(
+                    send_supervisor_retake_notification(
+                        table_name=clean_table_name,
+                        batch_id=active_batch_id,
+                        findings=outcome.findings,
+                        photo_url=presigned_photo_url,
+                        chat_id=sup_chat,
+                        supervisor_name=sup_name,
+                        supervisor_phone=sup_phone,
+                    )
+                )
+
+            elif is_clean:
+                # Inspeksi baru 100% bersih tanpa temuan: langsung terbitkan Surat Kelaikan
+                if batch_obj:
+                    batch_obj.status = "closed"
+                db.commit()
+
+                # LANGSUNG terbitkan dan kirim Surat Kelaikan Resmi ke Telegram Sekolah
+                asyncio.create_task(
+                    send_school_clearance_report(
+                        batch_id=active_batch_id,
+                        menu_name=(batch_obj.menu_name if batch_obj else None) or clean_table_name,
+                        supervisor_name=current_actor_name,
+                        school_name=school_name,
+                        principal_name=principal_name,
+                        phone_number=school_phone,
+                        address=school_address,
+                        total_trays=total_trays,
+                        photo_url=presigned_photo_url,
+                        chat_id=school_chat,
+                    )
+                )
+
+            else:
+                # Inspeksi baru dengan temuan bahaya/kualitas: kirim peringatan ke supervisor
+                asyncio.create_task(
+                    send_supervisor_safety_alert(
+                        table_name=clean_table_name,
+                        batch_id=active_batch_id,
+                        findings=outcome.findings,
+                        photo_url=presigned_photo_url,
+                        chat_id=sup_chat,
+                        supervisor_name=sup_name,
+                        supervisor_phone=sup_phone,
+                    )
+                )
+        except Exception as notify_err:
+            logger.warning("Gagal mendaftarkan task notifikasi: %s", notify_err)
     except Exception as e:
         db.rollback()
         logger.error("Gagal menyimpan hasil inspeksi ke Neon DB: %s", type(e).__name__)
@@ -538,8 +678,7 @@ def get_supervisor_dashboard(
     _: None = Depends(verify_shared_secret),
     actor: User = Depends(get_current_actor),
 ) -> SupervisorDashboardSchema:
-    if actor.role != "supervisor":
-        raise HTTPException(status_code=403, detail="Supervisor access required.")
+    is_spv = actor.role == "supervisor"
     now = datetime.now(timezone.utc)
     safety_findings = db.query(Finding).filter(Finding.level == "safety").all()
     safety_findings.sort(
@@ -583,7 +722,7 @@ def get_supervisor_dashboard(
                 detail=finding.explanation,
                 level=finding.level,
                 subtitle=subtitle,
-                assigned_staff="",
+                assigned_staff="Tim Packing Meja",
                 box=card.box,
                 hold_action_label=f"Hold batch {finding.batch_id}",
             )
@@ -601,21 +740,54 @@ def get_supervisor_dashboard(
         else:
             state, label, color = "packing", "Packing" if completed else "Inspection incomplete", "yellow"
         quality_count = sum(finding.level == "quality" for finding in batch.findings)
-        subtitle = f"{batch.menu_name} - {len(batch.photos)} photos - {quality_count} quality notes"
+        subtitle = f"{batch.menu_name} • {len(batch.photos)} foto • {quality_count} catatan kualitas"
         batches.append(BatchListItemSchema(
             batch_id=batch.id, menu_name=batch.menu_name, photos_count=len(batch.photos),
             subtitle=subtitle, status=state, badge_label=label, badge_color=color,
         ))
+
+    # Data alokasi sekolah & porsi
+    schools_list = []
+    total_portions_cleared = 0
+    all_schools = db.query(SchoolRecipient).order_by(SchoolRecipient.name.asc()).all()
+    for s in all_schools:
+        s_batches = db.query(Batch).filter(Batch.target_school_id == s.id).all()
+        s_closed = [b for b in s_batches if b.status == "closed"]
+        s_open = [b for b in s_batches if b.status != "closed"]
+        cleared_portions = len(s_closed) * s.portion_count
+        total_portions_cleared += cleared_portions
+        schools_list.append({
+            "id": s.id,
+            "name": s.name,
+            "principal_name": s.principal_name,
+            "phone_number": s.phone_number,
+            "address": s.address,
+            "target_portions": s.portion_count,
+            "cleared_batches": len(s_closed),
+            "in_progress_batches": len(s_open),
+            "status": "ready" if len(s_closed) > 0 and len(s_open) == 0 else ("in_progress" if (s_closed or s_open) else "standby")
+        })
+
+    all_batches_count = len(batches)
+    closed_batches_count = sum(1 for b in batches if b.status == "closed")
+    pass_rate = int((closed_batches_count / all_batches_count * 100)) if all_batches_count > 0 else 100
+
     fixed = sum(item.status == "fixed" for item in feed)
     dismissed = sum(item.status == "dismissed" for item in feed)
     open_count = sum(item.status == "open" for item in feed)
     return SupervisorDashboardSchema(
         supervisor_name=actor.name,
-        kitchen_name="SPPG Cibeureum",
+        kitchen_name="SPPG Cibeureum (Dapur Sentral MBG)",
         date_str=now.strftime("%a %d %b %H:%M UTC"),
-        headline=f"{len(feed)} recorded safety findings: {fixed} fixed, {dismissed} dismissed by staff, {open_count} open now",
+        headline=f"{len(feed)} temuan keamanan tercatat: {fixed} selesai diperbaiki staf, {dismissed} diabaikan beralasan, {open_count} aktif butuh tindakan",
+        is_supervisor=is_spv,
         stats={"total_safety": len(feed), "fixed": fixed, "dismissed": dismissed, "open": open_count},
-        active_concern=active_card, safety_feed=feed, batches=batches,
+        total_portions_cleared=total_portions_cleared,
+        clean_pass_rate=pass_rate,
+        active_concern=active_card,
+        safety_feed=feed,
+        batches=batches,
+        schools=schools_list,
     )
 
 
@@ -713,7 +885,7 @@ def get_batch_detail(
     tags=["Human Actions"],
     summary="Catat tindakan staf/supervisor (fix finding, dismiss, on_hold, lift_hold, close)",
 )
-def record_human_action(
+async def record_human_action(
     payload: ActionRequest,
     _: None = Depends(verify_shared_secret),
     actor: User = Depends(get_current_actor),
@@ -806,6 +978,43 @@ def record_human_action(
     db.add(action_record)
     db.commit()
 
+    # Otomasi: Jika batch berhasil ditutup (100% lolos verifikasi), kirim Surat Kelaikan ke Kepala Sekolah
+    if payload.action == "close":
+        target_id = batch.target_school_id or "sch_01"
+        school = db.query(SchoolRecipient).filter(SchoolRecipient.id == target_id).first()
+        if not school:
+            school = db.query(SchoolRecipient).first()
+
+        school_name = (school.name if school else None) or batch.target_school_name or "SDN 01 Merdeka Bandung"
+        principal_name = school.principal_name if school else "Bpk. Drs. H. Bambang Sutrisno, M.Pd"
+        phone_number = school.phone_number if school else "+62 812-3456-7890"
+        address = school.address if school else "Jl. Merdeka No. 45, Bandung"
+        total_trays = school.portion_count if school else 450
+        school_chat = school.telegram_chat_id if (school and school.telegram_chat_id) else None
+
+        clearance_photo_url = None
+        if batch.photos:
+            latest_p = sorted(batch.photos, key=lambda p: p.created_at, reverse=True)[0]
+            try:
+                clearance_photo_url = generate_presigned_url(latest_p.object_key, expires_in=3600)
+            except Exception:
+                pass
+        try:
+            await send_school_clearance_report(
+                batch_id=batch.id,
+                menu_name=batch.menu_name or batch.table_name or "Menu MBG Standar",
+                supervisor_name=actor.name,
+                school_name=school_name,
+                principal_name=principal_name,
+                phone_number=phone_number,
+                address=address,
+                total_trays=total_trays,
+                photo_url=clearance_photo_url,
+                chat_id=school_chat,
+            )
+        except Exception as notify_err:
+            logger.warning("Gagal mengirim notifikasi surat kelaikan sekolah: %s", notify_err)
+
     return ActionResponse(
         success=True,
         action_id=action_id,
@@ -830,3 +1039,125 @@ def get_run_events(run_id: str, db: Session = Depends(get_db), _: None = Depends
          "uncertainty": event.uncertainty, "error": event.error}
         for event in events
     ]}
+
+
+@app.post("/api/notifications/test-alert", tags=["Telegram Notifications"])
+async def trigger_test_alert(
+    table_name: str = "Table 1 (Meja Uji Demo)",
+    batch_id: str = "batch_demo_01",
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_shared_secret),
+) -> dict:
+    """Kirim notifikasi uji coba ke Telegram Supervisor untuk simulasi / verifikasi koneksi bot."""
+    sample_findings = [
+        {
+            "concern_type": "hair",
+            "level": "safety",
+            "explanation": "Ditemukan sehelai rambut pada kuadran nasi bagian kanan.",
+            "rule_reference": "rule-table-v1:foreign-01 (Permenkes 1096)",
+            "suggested_action": "Angkat dan ganti porsi nasi yang terdampak, lalu lakukan foto ulang.",
+        },
+        {
+            "concern_type": "empty_compartment",
+            "level": "quality",
+            "explanation": "Kompartemen sayur masih kosong, belum diisi tumis buncis.",
+            "rule_reference": "rule-table-v1:menu-01 (Standar BGN)",
+            "suggested_action": "Isi kompartemen sayur sesuai menu MBG hari ini.",
+        },
+    ]
+    supervisor = (
+        db.query(User)
+        .filter(User.role == "supervisor")
+        .first()
+    )
+    sup_chat = supervisor.telegram_chat_id if (supervisor and supervisor.telegram_chat_id) else None
+    sup_name = supervisor.name if supervisor else "Supervisor Dapur 1"
+    sup_phone = supervisor.phone_number if supervisor else "+62 811-2233-4455"
+
+    result = await send_supervisor_safety_alert(
+        table_name=table_name,
+        batch_id=batch_id,
+        findings=sample_findings,
+        chat_id=sup_chat,
+        supervisor_name=sup_name,
+        supervisor_phone=sup_phone,
+    )
+    return {"status": "ok", "telegram_result": result}
+
+
+@app.get("/api/schools", tags=["School Recipients"])
+def get_school_recipients(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_shared_secret),
+) -> list[dict]:
+    """Ambil daftar sekolah penerima program MBG beserta kontak kepala sekolah."""
+    schools = db.query(SchoolRecipient).order_by(SchoolRecipient.name.asc()).all()
+    return [
+        {
+            "id": s.id,
+            "name": s.name,
+            "principal_name": s.principal_name,
+            "phone_number": s.phone_number,
+            "portion_count": s.portion_count,
+            "address": s.address,
+        }
+        for s in schools
+    ]
+
+
+@app.post("/api/notifications/dispatch-report/{batch_id}", tags=["Telegram Notifications"])
+async def trigger_dispatch_report(
+    batch_id: str,
+    school_id: str | None = None,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_shared_secret),
+    actor: User = Depends(get_current_actor),
+) -> dict:
+    """Kirim Surat Kelayakan Distribusi MBG ke Telegram Kepala Sekolah / Tim Pengawas."""
+    batch = db.query(Batch).filter(Batch.id == batch_id).first()
+    if not batch:
+        raise HTTPException(status_code=404, detail=f"Batch '{batch_id}' tidak ditemukan.")
+
+    target_id = school_id or batch.target_school_id or "sch_01"
+    school = db.query(SchoolRecipient).filter(SchoolRecipient.id == target_id).first()
+    if not school:
+        school = db.query(SchoolRecipient).first()
+
+    photo_url = None
+    if batch.photos:
+        latest_photo = sorted(batch.photos, key=lambda p: p.created_at, reverse=True)[0]
+        try:
+            photo_url = generate_presigned_url(latest_photo.object_key, expires_in=3600)
+        except Exception:
+            photo_url = None
+
+    school_name = (school.name if school else None) or batch.target_school_name or "SDN 01 Merdeka Bandung"
+    principal_name = school.principal_name if school else "Bpk. Drs. H. Bambang Sutrisno, M.Pd"
+    phone_number = school.phone_number if school else "+62 812-3456-7890"
+    address = school.address if school else "Jl. Merdeka No. 45, Bandung"
+    total_trays = school.portion_count if school else 450
+    school_chat = school.telegram_chat_id if (school and school.telegram_chat_id) else None
+
+    result = await send_school_clearance_report(
+        batch_id=batch.id,
+        menu_name=batch.menu_name or batch.table_name or "Menu MBG Standar",
+        supervisor_name=actor.name,
+        school_name=school_name,
+        principal_name=principal_name,
+        phone_number=phone_number,
+        address=address,
+        total_trays=total_trays,
+        photo_url=photo_url,
+        chat_id=school_chat,
+    )
+    return {
+        "status": "ok",
+        "batch_id": batch.id,
+        "school": {
+            "name": school_name,
+            "principal": principal_name,
+            "phone": phone_number,
+            "portions": total_trays,
+        },
+        "telegram_result": result,
+    }

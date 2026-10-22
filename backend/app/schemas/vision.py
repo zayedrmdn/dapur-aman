@@ -30,6 +30,15 @@ class FindingCardSchema(BaseModel):
     run_id: str | None = None
     photo_id: str | None = None
     photo_url: str | None = None
+    uncertainty: str | None = None
+
+    @property
+    def concern_type(self) -> str:
+        return self.title
+
+    @property
+    def explanation(self) -> str:
+        return self.detail
 
 
 class FoodComponentSchema(BaseModel):
@@ -58,3 +67,8 @@ class InspectionResponseSchema(BaseModel):
     missing_evidence: list[str] = []
     uncertainty: list[str] = []
     next_action: str | None = None
+
+    @property
+    def observations(self) -> list[FindingCardSchema]:
+        return self.findings
+

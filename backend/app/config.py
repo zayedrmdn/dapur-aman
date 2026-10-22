@@ -48,3 +48,8 @@ CORS_ALLOWED_ORIGINS = [
 
 SEED_STAFF_PASSWORD = os.getenv("SEED_STAFF_PASSWORD", "")
 SEED_SUPERVISOR_PASSWORD = os.getenv("SEED_SUPERVISOR_PASSWORD", "")
+
+# Telegram Bot Notifications (Omnichannel Alerts & School Clearance Reports)
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_SUPERVISOR_CHAT_ID = os.getenv("TELEGRAM_SUPERVISOR_CHAT_ID", os.getenv("TELEGRAM_CHAT_ID", ""))
+TELEGRAM_SCHOOL_CHAT_ID = os.getenv("TELEGRAM_SCHOOL_CHAT_ID", os.getenv("TELEGRAM_CHAT_ID", ""))
