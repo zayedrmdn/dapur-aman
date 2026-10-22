@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+[![Halaman depan Dapur Aman: foto baki makanan dengan temuan yang ditandai AI](docs/media/landing-preview.webp)](https://dapur-aman.vercel.app)
+
 Asisten keamanan pangan berbasis ponsel untuk dapur MBG (Makan Bergizi Gratis). Staf dapur memotret baki makanan sebelum dikemas. Tiga agen Google ADK mencari temuan yang terlihat dan mencocokkannya dengan tabel aturan. Setiap keputusan tetap diambil oleh manusia.
 
 Dibuat oleh tim **Nexara Vision** untuk **Agentic AI Hackathon 2026**, bagian dari ITB Hackathon Series 2026 (21–23 Oktober 2026).

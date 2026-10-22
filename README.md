@@ -2,6 +2,8 @@
 
 [Bahasa Indonesia](README.id.md)
 
+[![Dapur Aman landing page: a meal-tray photo with AI-marked concerns](docs/media/landing-preview.webp)](https://dapur-aman.vercel.app)
+
 A phone-first food-safety assistant for MBG (Makan Bergizi Gratis) school-meal kitchens. Kitchen staff photograph a meal tray before packing. Three Google ADK agents look for visible concerns and match them to a rule table. A person decides every outcome.
 
 Built by team **Nexara Vision** for the **Agentic AI Hackathon 2026**, part of ITB Hackathon Series 2026 (21–23 October 2026).
