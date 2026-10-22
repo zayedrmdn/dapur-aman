@@ -119,7 +119,7 @@ flowchart LR
 2. Baca ringkasan angka (temuan keamanan, diperbaiki oleh staf, diabaikan, masih terbuka) dan temuan keamanan terbuka terbaru.
 3. Tahan batch dengan "Tahan batch" pada kartu temuan dan alasan (minimal 3 karakter).
 4. Filter batch berdasarkan semua, terbuka, ditahan, atau ditutup. Cabut penahanan dengan "Cabut penahanan" dan alasan.
-5. Buka batch mana pun dengan "Periksa baki" untuk meninjaunya seperti staf.
+5. Buka batch mana pun dengan "Buka detail" untuk meninjaunya seperti staf.
 6. Untuk batch yang sudah ditutup, kirim laporan ke sekolah dengan "Kirim laporan Telegram" (dasbor) atau "Kirim laporan ke Telegram sekolah" (layar peninjauan).
 
 ### Aturan keputusan

@@ -119,7 +119,7 @@ flowchart LR
 2. Read the headline counts (safety findings, fixed by staff, dismissed, still open) and the latest open safety concern.
 3. Hold a batch with "Tahan batch" on the concern card and a reason (at least 3 characters).
 4. Filter batches by all, open, held or closed. Lift a hold with "Cabut penahanan" and a reason.
-5. Open any batch with "Periksa baki" to review it like staff do.
+5. Open any batch with "Buka detail" to review it like staff do.
 6. For a closed batch, send the school report with "Kirim laporan Telegram" (dashboard) or "Kirim laporan ke Telegram sekolah" (review screen).
 
 ### Decision rules
