@@ -238,7 +238,7 @@ Tabel aturan adalah `rule-table-v1` di `backend/agents/compliance/rules.py`. Ben
 | `/` | Mengarahkan ke `/staff` |
 | `/landing` | Halaman landing statis dengan tautan ke login dan dasbor |
 | `/login` | Formulir nama pengguna dan kata sandi; mengarahkan sesuai peran setelah login |
-| `/staff` | Daftar batch staf dan formulir batch baru |
+| `/staff` | Daftar batch staf, terbaru lebih dulu, bisa dicari, dan formulir batch baru |
 | `/staff-review?batch=<id>`, `/staff-send-confirm` | Aplikasi staf dalam mode peninjauan untuk satu batch |
 | `/supervisor` | Mengarahkan ke `/dashboard` |
 | `/dashboard` | Dasbor supervisor. Semua pengguna yang sudah masuk dapat membuka halamannya; peran lain melihat pesan khusus supervisor karena panggilan datanya mengembalikan 403. |
@@ -258,9 +258,13 @@ Tidak ada middleware route: halaman memuat data melalui BFF, mengarahkan penggun
 | `app/components/MenuTags.tsx` | Input tag komponen menu |
 | `app/components/HoldingTimer.tsx` | Waktu berjalan terhadap batas demo 4 jam |
 | `app/components/InspectionSteps.tsx` | Penanda progres tiga tahap selama inspeksi |
+| `app/components/InspectionStatus.tsx` | Status inspeksi tersimpan setelah aplikasi ditinggalkan |
+| `app/components/PitchPhoto.tsx` | Foto halaman depan dengan penanda temuan |
 | `app/components/icons.tsx` | Ikon SVG inline |
+| `lib/batch-list.ts` | Urutan dan pencarian daftar batch |
 | `lib/contracts.ts` | Tipe payload API dan helper browser `api()` untuk `/api/staff/*` |
 | `lib/labels.ts` | Label tampilan untuk kode backend |
+| `lib/pending-inspection.ts` | Inspeksi yang dimulai perangkat ini |
 | `lib/session.ts` | Penandatanganan dan verifikasi token sesi (khusus server) |
 | `lib/staff-api.ts` | BFF: validasi, pembatasan laju, panggilan backend (khusus server) |
 
@@ -280,7 +284,7 @@ Route `frontend/app/api/staff/[...path]/route.ts` menerima GET dan POST lalu men
 | GET | `runs/{run_id}/events` | `GET /api/runs/{run_id}/events` | Aturan ID yang sama |
 | POST | `actions` | `POST /api/actions` | Memvalidasi tindakan, ID, dan alasan (3–2000 karakter) |
 | POST | `notifications/dispatch-report/{batch_id}` | `POST /api/notifications/dispatch-report/{batch_id}` | |
-| POST | `inspect` | `POST /api/inspections/upload-and-run` | JPEG, PNG, atau WebP hingga 4 MB. Satu inspeksi sekaligus dan 10 per 10 menit per akun. |
+| POST | `inspect` | `POST /api/inspections/upload-and-run` | JPEG, PNG, atau WebP hingga 4 MB. Satu inspeksi sekaligus dan 10 per 10 menit per akun. Perangkat memilih ID batch dan menyimpannya di perangkat, sehingga tab yang ditinggalkan bisa menemukan hasil tersimpan lagi. |
 
 Operasi yang tidak dikenal mengembalikan 404. BFF tidak membuka `/api/notifications/test-alert` atau `/api/vision/inspect`. Setiap operasi selain `login` memerlukan cookie sesi yang valid (jika tidak, 401). Setiap POST harus berasal dari origin yang sama (jika tidak, 403). Pembatasan laju dan penjaga satu inspeksi disimpan di memori per instance server.
 
@@ -665,7 +669,7 @@ Jangan menjalankan `backend/test_vision.py` atau `backend/test_backend_full.py` 
 
 | Perintah | Yang diperiksa |
 | --- | --- |
-| `node --test --test-isolation=none tests/session.test.mjs tests/staff-api.test.cjs tests/labels.test.mjs tests/dashboard-hold.test.cjs` | Penandatanganan sesi; handler BFF terhadap backend uji terisolasi, yang harus sudah berjalan di port 8765 (lihat `frontend/tests/README.md`); label Bahasa Indonesia dan waktu WIB; status serta umpan balik tahan dan lepas di dasbor. 18 lulus pada 22 Oktober 2026. |
+| `node --test --test-isolation=none tests/session.test.mjs tests/staff-api.test.cjs tests/labels.test.mjs tests/dashboard-hold.test.cjs tests/pending-inspection.test.mjs tests/batch-picker.test.mjs` | Penandatanganan sesi; handler BFF terhadap backend uji terisolasi, yang harus sudah berjalan di port 8765 (lihat `frontend/tests/README.md`); label Bahasa Indonesia dan waktu WIB; status serta umpan balik tahan dan lepas di dasbor; inspeksi yang menunggu di perangkat; urutan dan pencarian daftar batch. 28 lulus pada 22 Oktober 2026. |
 | `bun run lint` | ESLint |
 | `bunx next typegen` lalu `bunx tsc --noEmit` | TypeScript |
 | `bun run build` | Build production |
@@ -704,6 +708,7 @@ Untuk alur browser lengkap secara lokal tanpa layanan cloud, `backend/tests/loca
 - **Hanya Vision yang melihat foto.** Agen Orchestrator dan Compliance bekerja dari teks Vision.
 - **Hosting demo.** Backend bergantung pada satu laptop dan Quick Tunnel; setiap restart tunnel memerlukan pembaruan Vercel dan sekitar satu menit downtime untuk redeploy. Cloud Run terhambat IAM.
 - **Batasan di memori.** Pembatasan laju BFF dan penjaga satu inspeksi direset saat restart dan tidak dibagi antar-instance Vercel. Sesi tidak dapat dicabut sebelum kedaluwarsa.
+- **Inspeksi yang berjalan disimpan di perangkat.** ID batch disimpan di local storage browser, sehingga ponsel kedua tidak dapat melihat inspeksi yang masih berjalan dan menghapus data browser menghilangkan penunjuknya. Batch dan hasil inspeksinya tetap tersimpan di server.
 - **Tidak ada migrasi.** Perubahan skema berjalan saat backend mulai.
 - **Verifikasi QR belum diimplementasikan.**
 - `backend/agents/vision/agent.py` dan `prompts.py` adalah jalur Vision lama: masih diimpor bersama paketnya, tetapi tidak pernah dijalankan oleh workflow inspeksi.

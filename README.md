@@ -238,7 +238,7 @@ The rule table is `rule-table-v1` in `backend/agents/compliance/rules.py`. A ref
 | `/` | Redirects to `/staff` |
 | `/landing` | Static landing page with links to login and the dashboard |
 | `/login` | Username and password form; routes by role after login |
-| `/staff` | Staff batch list and new-batch form |
+| `/staff` | Staff batch list, newest first, searchable, and new-batch form |
 | `/staff-review?batch=<id>`, `/staff-send-confirm` | The staff app in review mode for one batch |
 | `/supervisor` | Redirects to `/dashboard` |
 | `/dashboard` | Supervisor dashboard. Any signed-in user can open the page; other roles see a supervisor-only message because the data call returns 403. |
@@ -258,9 +258,13 @@ There is no route middleware: pages load data through the BFF, send the user to 
 | `app/components/MenuTags.tsx` | Menu component tag input |
 | `app/components/HoldingTimer.tsx` | Elapsed time against the 4-hour demo limit |
 | `app/components/InspectionSteps.tsx` | Three-stage progress indicator during a run |
+| `app/components/InspectionStatus.tsx` | Saved inspection status after the app is switched |
+| `app/components/PitchPhoto.tsx` | Landing page photo with the marked spots |
 | `app/components/icons.tsx` | Inline SVG icons |
+| `lib/batch-list.ts` | Batch list order and search |
 | `lib/contracts.ts` | API payload types and the browser `api()` helper for `/api/staff/*` |
 | `lib/labels.ts` | Display labels for backend codes |
+| `lib/pending-inspection.ts` | The inspection this device started |
 | `lib/session.ts` | Session token signing and verification (server only) |
 | `lib/staff-api.ts` | The BFF: validation, rate limits, backend calls (server only) |
 
@@ -280,7 +284,7 @@ The route `frontend/app/api/staff/[...path]/route.ts` accepts GET and POST and f
 | GET | `runs/{run_id}/events` | `GET /api/runs/{run_id}/events` | Same ID rule |
 | POST | `actions` | `POST /api/actions` | Validates action, IDs and reason (3–2000 characters) |
 | POST | `notifications/dispatch-report/{batch_id}` | `POST /api/notifications/dispatch-report/{batch_id}` | |
-| POST | `inspect` | `POST /api/inspections/upload-and-run` | JPEG, PNG or WebP up to 4 MB. One run at a time and 10 per 10 minutes per account. |
+| POST | `inspect` | `POST /api/inspections/upload-and-run` | JPEG, PNG or WebP up to 4 MB. One run at a time and 10 per 10 minutes per account. The phone chooses the batch id and keeps it on the device, so a tab that was switched away finds the saved result again. |
 
 Unknown operations return 404. The BFF does not expose `/api/notifications/test-alert` or `/api/vision/inspect`. Every operation except `login` needs a valid session cookie (401 otherwise). Every POST must come from the same origin (403 otherwise). Rate limits and the one-run guard are in memory per server instance.
 
@@ -665,7 +669,7 @@ Do not run `backend/test_vision.py` or `backend/test_backend_full.py` casually: 
 
 | Command | Checks |
 | --- | --- |
-| `node --test --test-isolation=none tests/session.test.mjs tests/staff-api.test.cjs tests/labels.test.mjs tests/dashboard-hold.test.cjs` | Session signing; the BFF handlers against the isolated test backend, which must be running on port 8765 first (see `frontend/tests/README.md`); Bahasa labels and WIB times; dashboard hold and release state and feedback. 18 passed on 22 October 2026. |
+| `node --test --test-isolation=none tests/session.test.mjs tests/staff-api.test.cjs tests/labels.test.mjs tests/dashboard-hold.test.cjs tests/pending-inspection.test.mjs tests/batch-picker.test.mjs` | Session signing; the BFF handlers against the isolated test backend, which must be running on port 8765 first (see `frontend/tests/README.md`); Bahasa labels and WIB times; dashboard hold and release state and feedback; the pending inspection kept on the phone; the batch list order and search. 28 passed on 22 October 2026. |
 | `bun run lint` | ESLint |
 | `bunx next typegen` then `bunx tsc --noEmit` | TypeScript |
 | `bun run build` | Production build |
@@ -704,6 +708,7 @@ For a full local browser journey without cloud services, `backend/tests/local_mv
 - **Only Vision sees the photo.** The Orchestrator and Compliance agents work from Vision's text.
 - **Demo hosting.** The backend depends on one laptop and a Quick Tunnel; each tunnel restart needs a Vercel update and about a minute of redeploy downtime. Cloud Run is blocked on IAM.
 - **In-memory limits.** BFF rate limits and the one-run guard reset on restart and are not shared between Vercel instances. Sessions cannot be revoked before they expire.
+- **The pending inspection lives on the phone.** The batch id is kept in the browser's local storage, so a second phone cannot see an inspection that is still running and clearing the browser data loses the pointer. The batch and its result stay on the server.
 - **No migrations.** Schema changes run at backend startup.
 - **QR verification is not implemented.**
 - `backend/agents/vision/agent.py` and `prompts.py` are an older Vision path: still imported with the package, but never run by the inspection workflow.
