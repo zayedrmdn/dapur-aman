@@ -1,8 +1,9 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Button from "@mui/material/Button";
 import { api, ApiError } from "@/lib/contracts";
 import { ErrorMessage, inputClass } from "./StaffShell";
+import { CameraIcon, GalleryIcon } from "./icons";
 
 async function preparePhoto(file: File): Promise<File> {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Pilih foto JPEG, PNG, atau WebP.");
@@ -20,16 +21,48 @@ async function preparePhoto(file: File): Promise<File> {
     return new File([blob], "packing-photo.jpg", { type: "image/jpeg" });
   } finally { bitmap.close(); }
 }
+function PhotoPicker({ photo, previewUrl, disabled, picked }: { photo: File | null; previewUrl: string; disabled: boolean; picked: (file: File | null) => void }) {
+  function choose(event: ChangeEvent<HTMLInputElement>) {
+    picked(event.target.files?.[0] ?? null);
+    event.target.value = "";
+  }
+  return <div className="flex min-w-0 flex-col gap-1.5">
+    <span className="text-sm font-medium">Foto meja atau rak</span>
+    <div className="grid grid-cols-2 gap-2">
+      <Button component="label" variant="outlined" size="large" disabled={disabled} startIcon={<CameraIcon />}>
+        Ambil Foto
+        <input type="file" accept="image/*" capture="environment" onChange={choose} className="sr-only" />
+      </Button>
+      <Button component="label" variant="outlined" size="large" disabled={disabled} startIcon={<GalleryIcon />}>
+        Pilih dari Galeri
+        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={choose} className="sr-only" />
+      </Button>
+    </div>
+    <p className="text-xs text-ink2">Jika kamera tidak tersedia atau izinnya ditolak, pilih foto dari galeri.</p>
+    {photo && <div className="mt-1 flex items-center gap-3 rounded-xl border border-rule p-2">
+      {/* eslint-disable-next-line @next/next/no-img-element -- Local blob preview of the chosen photo. */}
+      {previewUrl && <img src={previewUrl} alt="Pratinjau foto terpilih" className="size-16 shrink-0 rounded-lg object-cover" />}
+      <p className="min-w-0 text-sm"><b className="block">Foto terpilih</b><span className="block truncate text-xs text-ink2">{photo.name}</span></p>
+    </div>}
+  </div>;
+}
+
 export default function UploadForm({ batchId, retake = false, done }: { batchId?: string; retake?: boolean; done: (id: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+  function pickPhoto(file: File | null) {
+    if (!file) return;
+    setPhoto(file); setPreviewUrl(URL.createObjectURL(file)); setError("");
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = new FormData(event.currentTarget);
     setBusy(true); setError("");
     try {
-      const file = form.get("photo");
-      if (!(file instanceof File) || !file.size) throw new Error("Pilih foto meja atau rak.");
-      form.set("photo", await preparePhoto(file));
+      if (!photo || !photo.size) throw new Error("Ambil atau pilih foto meja atau rak.");
+      form.set("photo", await preparePhoto(photo));
       if (batchId) form.set("batch_id", batchId);
       form.set("is_retake", String(retake));
       const result = await api<{ batch_id: string }>("inspect", form);
@@ -61,7 +94,7 @@ export default function UploadForm({ batchId, retake = false, done }: { batchId?
           Komponen menu yang seharusnya ada
           <textarea name="menu_items" required maxLength={2000} rows={2} defaultValue={retake ? undefined : "Nasi putih, Ayam kecap, Tumis buncis, Tahu goreng, Anggur"} placeholder="Pisahkan dengan koma: nasi, ayam, sayur" className={inputClass} />
         </label>
-        <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">Foto meja atau rak<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required className="w-full min-w-0 text-sm file:mr-3 file:rounded-xl file:border file:border-rule file:bg-mint file:px-3 file:py-3" /></label>
+        <PhotoPicker photo={photo} previewUrl={previewUrl} disabled={busy} picked={pickPhoto} />
       </fieldset>
       <p className="text-xs text-ink2">Foto dikonversi ke JPEG, sisi panjang hingga 1600 piksel. Gunakan foto yang jelas sebelum tutup dipasang.</p>
       {error && <ErrorMessage>{error}</ErrorMessage>}
