@@ -57,7 +57,7 @@ export default function BatchResult({ batch, refresh }: { batch: Batch; refresh:
       await api("actions", {
         batch_id: batch.batch_id,
         action: "close",
-        reason: "Semua temuan terverifikasi telah diperbaiki dan memenuhi standar kelaikan MBG.",
+        reason: "Semua temuan sudah ditangani oleh manusia.",
       });
       await refresh();
     } catch (err) {
@@ -72,7 +72,7 @@ export default function BatchResult({ batch, refresh }: { batch: Batch; refresh:
     setDispatchNotice("");
     try {
       await api(`notifications/dispatch-report/${encodeURIComponent(batch.batch_id)}`, {});
-      setDispatchNotice("Surat Kelaikan terkirim ke Telegram Sekolah!");
+      setDispatchNotice("Surat terkirim ke Telegram sekolah.");
     } catch (err) {
       setDispatchNotice(err instanceof Error ? err.message : "Gagal mengirim ke Telegram.");
     } finally {
@@ -90,26 +90,28 @@ export default function BatchResult({ batch, refresh }: { batch: Batch; refresh:
   }, [runId]);
   const findings = run ? batch.findings.filter(finding => finding.run_id === run.id) : [];
   const openFindings = batch.findings.filter(finding => finding.state === "open");
+  const latestRun = runs[0];
+  const canClose = batch.status === "in_review" && openFindings.length === 0 && latestRun?.state === "completed" && latestRun.outcome !== "retake_required";
   return <section className="border-t border-rule pb-2">
     <div className="flex flex-col gap-3 p-4">
       <h2 className="text-lg font-extrabold">{batch.table_name}</h2>
       <p className="break-all text-xs text-ink2">Batch {batch.batch_id} - {batch.status === "on_hold" ? "Ditahan supervisor" : batch.status === "closed" ? "Ditutup oleh manusia" : "Dalam peninjauan"}</p>
       {batch.status === "closed" && <div className="rounded border border-brand bg-mint p-3 text-sm text-brand-dark">
-        <p className="font-bold">✅ Surat Kelaikan Distribusi MBG Resmi</p>
-        <p className="mt-1 text-xs text-ink2">Batch ini terverifikasi 100% lolos audit AI &amp; disetujui supervisor. Siap didistribusikan ke sekolah.</p>
+        <p className="font-bold">Batch ditutup oleh manusia</p>
+        <p className="mt-1 text-xs text-ink2">Semua temuan sudah ditangani. Foto hanya membantu melihat kemungkinan masalah; hasil foto bukan jaminan keamanan pangan. Hanya supervisor yang dapat mengirim surat ke sekolah.</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Button size="small" variant="contained" disabled={sendingDispatch} onClick={sendDispatchReport} className="bg-brand text-xs text-white">
-            {sendingDispatch ? "Mengirim..." : "Kirim Ulang Surat Kelaikan ke Telegram Sekolah"}
+            {sendingDispatch ? "Mengirim..." : "Kirim Surat ke Telegram Sekolah"}
           </Button>
           {dispatchNotice && <span className="text-xs font-semibold text-brand">{dispatchNotice}</span>}
         </div>
       </div>}
-      {batch.status !== "closed" && openFindings.length === 0 && <div className="rounded border-2 border-brand bg-mint p-3 text-sm text-brand-dark">
-        <p className="font-bold">✨ Semua temuan telah diperbaiki &amp; terverifikasi!</p>
-        <p className="mt-1 text-xs text-ink2">Baki sudah bersih dari masalah. Tutup batch ini untuk memfinalisasi dan menerbitkan Surat Kelaikan Pengiriman ke Telegram Sekolah.</p>
+      {canClose && <div className="rounded border-2 border-brand bg-mint p-3 text-sm text-brand-dark">
+        <p className="font-bold">Tidak ada temuan terbuka</p>
+        <p className="mt-1 text-xs text-ink2">Periksa baki secara langsung sebelum menutup batch. Hasil foto bukan jaminan keamanan pangan.</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Button size="small" variant="contained" disabled={closingBatch} onClick={handleCloseBatch} className="bg-brand text-xs font-bold text-white">
-            {closingBatch ? "Memproses..." : "Tutup Batch & Terbitkan Surat Kelaikan ke Sekolah"}
+            {closingBatch ? "Memproses..." : "Tutup batch"}
           </Button>
           {closeError && <span className="text-xs font-semibold text-safety">{closeError}</span>}
         </div>
