@@ -137,7 +137,7 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
     <h2 className="px-4 pt-5 text-lg font-extrabold">Temuan pada foto terpilih</h2>
     {findings.length ? <ol>{findings.map((finding, index) => <FindingItem key={finding.id} finding={finding} index={index} batchId={batch.batch_id} canFix={hasRetake(finding)} refreshed={refresh} />)}</ol> : <p className="p-4 text-sm text-ink2">Tidak ada temuan tersimpan pada foto ini. Periksa status dan ketidakpastian di atas.</p>}
     {run && <details className="border-t border-rule px-4 py-4" open>
-      <summary className="cursor-pointer font-bold">Aktivitas AI tersimpan</summary>
+      <summary className="cursor-pointer py-2.5 font-bold">Aktivitas AI tersimpan</summary>
       <TechnicalDetails className="mt-1" items={[["Penyedia model", `${run.provider} / ${run.model}`], ["ID inspeksi", run.id]]} />
       {trace?.runId !== run.id ? <p role="status" className="mt-2 text-sm">Memuat rekaman...</p> : trace.error ? <p className="mt-2 text-sm">{trace.error}</p> : !trace.events.length ? <p className="mt-2 text-sm">Tidak ada rekaman aktivitas untuk inspeksi ini.</p> : <ol className="mt-3 divide-y divide-rule">{trace.events.map(event => {
         const summary = activitySummary(event.summary);
@@ -146,6 +146,6 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
           {(isTool || event.error || event.references.length > 0) && <TechnicalDetails items={[["Alat", isTool ? event.step : null], ["Ringkasan asli", summary !== event.summary ? event.summary : null], ["Galat", event.error], ["Rujukan", event.references.join(", ")]]} />}</li>;
       })}</ol>}
     </details>}
-    {batch.actions.length > 0 && <details className="border-t border-rule px-4 py-4"><summary className="cursor-pointer font-bold">Riwayat tindakan manusia</summary><ul className="mt-2 divide-y divide-rule">{batch.actions.map(action => <li key={action.id} className="py-3 text-sm"><b>{action.actor_name}</b> - {backendLabel(action.action)}<p>{action.reason}</p><time className="text-xs text-ink2">{time(action.created_at)}</time></li>)}</ul></details>}
+    {batch.actions.length > 0 && <details className="border-t border-rule px-4 py-4"><summary className="cursor-pointer py-2.5 font-bold">Riwayat tindakan manusia</summary><ul className="mt-2 divide-y divide-rule">{batch.actions.map(action => <li key={action.id} className="py-3 text-sm"><b>{action.actor_name}</b> - {backendLabel(action.action)}<p>{action.reason}</p><time className="text-xs text-ink2">{time(action.created_at)}</time></li>)}</ul></details>}
   </section>;
 }

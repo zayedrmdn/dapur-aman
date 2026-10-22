@@ -12,12 +12,12 @@ export default function StaffShell({ title, name, role, children, logout }: { ti
     <header className="bg-brand px-4 pt-4 pb-5 text-white">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <Link className="text-base font-extrabold" href={isSupervisor ? "/dashboard" : "/staff"}>Dapur Aman <span className="block text-xs font-normal">by Nexara</span></Link>
+          <Link className="block min-h-11 text-base font-extrabold" href={isSupervisor ? "/dashboard" : "/staff"}>Dapur Aman <span className="block text-xs font-normal">by Nexara</span></Link>
           {signedIn && isSupervisor && <Link href="/dashboard" className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/40 px-3 text-xs font-bold text-white hover:bg-white/15">
             <ChartIcon size={16} />Dasbor supervisor
           </Link>}
         </div>
-        <div className="text-right text-sm"><span>{name ?? "Akses staf dapur"}</span>{logout && <button className="mt-1 block w-full underline underline-offset-4" onClick={logout}>Keluar</button>}</div>
+        <div className="text-right text-sm"><span>{name ?? "Akses staf dapur"}</span>{logout && <button className="ml-auto flex min-h-11 items-center underline underline-offset-4" onClick={logout}>Keluar</button>}</div>
       </div>
       <h1 className="mt-4 text-2xl leading-tight font-extrabold text-balance">{title}</h1>
     </header>

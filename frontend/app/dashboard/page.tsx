@@ -189,6 +189,7 @@ export default function SupervisorDashboardPage() {
     return true;
   });
   const onHoldCount = data ? data.batches.filter((b) => b.status === "on_hold").length : 0;
+  const closedCount = data ? data.batches.filter((b) => b.status === "closed").length : 0;
   function batchName(batchId: string): string {
     const batch = data?.batches.find((b) => b.batch_id === batchId);
     return batch ? batchHeading(batch.table_name ?? batch.menu_name, batch.school_name) : "Batch ini";
@@ -226,7 +227,7 @@ export default function SupervisorDashboardPage() {
 
             <Link
               href="/staff"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 font-bold text-white transition hover:bg-white/20"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 font-bold text-white transition hover:bg-white/20"
             >
               Layar staf
             </Link>
@@ -234,14 +235,14 @@ export default function SupervisorDashboardPage() {
             <button
               onClick={() => loadDashboard()}
               title="Segarkan data terbaru"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 font-bold text-white transition hover:bg-white/20"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 font-bold text-white transition hover:bg-white/20"
             >
               Segarkan
             </button>
 
             <button
               onClick={handleLogout}
-              className="rounded-lg bg-black/20 px-3 py-1.5 font-bold text-white transition hover:bg-black/30"
+              className="inline-flex min-h-11 items-center rounded-lg bg-black/20 px-3 py-1.5 font-bold text-white transition hover:bg-black/30"
             >
               Keluar
             </button>
@@ -263,7 +264,7 @@ export default function SupervisorDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3 text-xs">
-            <label className="flex cursor-pointer items-center gap-1.5 text-ink2 select-none">
+            <label className="flex min-h-11 cursor-pointer items-center gap-1.5 text-ink2 select-none">
               <input
                 type="checkbox"
                 checked={autoRefresh}
@@ -320,8 +321,8 @@ export default function SupervisorDashboardPage() {
               <div className="rounded-2xl border border-rule bg-paper p-4">
                 <div className="text-xs font-bold text-ink2">Batch ditutup</div>
                 <div className="mt-2 flex items-baseline gap-1.5">
-                  <span className="text-2xl font-black text-brand sm:text-3xl">{data.batches.length ? `${data.clean_pass_rate}%` : "-"}</span>
-                  <span className="text-[10px] font-bold text-ink2">dari semua batch</span>
+                  <span className="text-2xl font-black text-brand sm:text-3xl">{closedCount}</span>
+                  <span className="text-[11px] font-semibold text-ink2">dari {data.batches.length} batch</span>
                 </div>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-rule">
                   <div className="h-full bg-brand transition-all duration-500" style={{ width: `${data.batches.length ? data.clean_pass_rate : 0}%` }}></div>
@@ -613,7 +614,7 @@ export default function SupervisorDashboardPage() {
                   </div>
 
                   {/* Filter Tabs */}
-                  <div className="flex flex-wrap items-center gap-1 rounded-xl bg-ground p-1 text-xs">
+                  <div className="grid w-full grid-cols-2 gap-1 rounded-xl bg-ground p-1 text-xs sm:flex sm:w-auto sm:flex-wrap sm:items-center">
                     {(
                       [
                         { id: "all", label: "Semua" },
@@ -625,7 +626,8 @@ export default function SupervisorDashboardPage() {
                       <button
                         key={tab.id}
                         onClick={() => setFilterTab(tab.id)}
-                        className={`rounded-lg px-2.5 py-1 font-bold transition ${
+                        aria-pressed={filterTab === tab.id}
+                        className={`min-h-11 rounded-lg px-2.5 py-1 font-bold transition ${
                           filterTab === tab.id ? "bg-paper text-brand-dark" : "text-ink2 hover:text-ink"
                         }`}
                       >

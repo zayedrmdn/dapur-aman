@@ -51,7 +51,7 @@ function PhotoPicker({ photo, previewUrl, disabled, picked }: { photo: File | nu
 
 const DEMO_MENU = "Nasi putih, Ayam kecap, Tumis buncis, Tahu goreng, Anggur";
 
-export default function UploadForm({ batchId, menu, retake = false, done }: { batchId?: string; menu?: string | null; retake?: boolean; done: (id: string) => void }) {
+export default function UploadForm({ batchId, menu, table, retake = false, done }: { batchId?: string; menu?: string | null; table?: string; retake?: boolean; done: (id: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
@@ -93,7 +93,7 @@ export default function UploadForm({ batchId, menu, retake = false, done }: { ba
         )}
         <label className="flex flex-col gap-1.5 text-sm font-medium">
           Nama meja atau lini packing
-          <input name="table_name" required maxLength={100} defaultValue={retake ? undefined : "Meja 1"} placeholder="Contoh: Meja 1" className={inputClass} />
+          <input name="table_name" required maxLength={100} defaultValue={retake ? table : "Meja 1"} placeholder="Contoh: Meja 1" className={inputClass} />
         </label>
         <MenuTags initial={splitMenu(batchId ? menu ?? "" : DEMO_MENU)} />
         <PhotoPicker photo={photo} previewUrl={previewUrl} disabled={busy} picked={pickPhoto} />

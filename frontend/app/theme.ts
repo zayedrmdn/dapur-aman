@@ -19,7 +19,7 @@ const theme = createTheme({
     button: { textTransform: "none", fontWeight: 700 },
   },
   components: {
-    MuiButton: { defaultProps: { disableElevation: true } },
+    MuiButton: { defaultProps: { disableElevation: true }, styleOverrides: { root: { minHeight: 44 } } },
   },
 });
 
