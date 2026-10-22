@@ -100,3 +100,21 @@ def test_dismissed_does_not_need_a_retake(api):
     db.commit()
     response = client.post("/api/actions", headers=SECRET, json={"batch_id": BATCH, "finding_id": "old_finding", "action": "dismissed", "reason": "False alarm checked by hand"})
     assert response.status_code == 200, response.text
+
+
+def test_staff_close_needs_handled_findings_and_no_hold_and_only_supervisor_holds(api, letters):
+    client, db = api
+    close = {"batch_id": BATCH, "action": "close", "reason": "All findings handled"}
+    assert client.post("/api/actions", headers=SECRET, json=close).status_code == 400
+    db.get(Finding, "old_finding").status = "dismissed"
+    db.commit()
+    hold = {"batch_id": BATCH, "action": "on_hold", "reason": "Check the portion"}
+    assert client.post("/api/actions", headers=SECRET, json=hold).status_code == 403
+    assert client.post("/api/actions", headers={**SECRET, "X-Actor-Id": "supervisor"}, json=hold).status_code == 200
+    assert client.post("/api/actions", headers=SECRET, json=close).status_code == 400
+    lift = {"batch_id": BATCH, "action": "lift_hold", "reason": "Portion checked"}
+    assert client.post("/api/actions", headers=SECRET, json=lift).status_code == 403
+    assert client.post("/api/actions", headers={**SECRET, "X-Actor-Id": "supervisor"}, json=lift).status_code == 200
+    assert client.post("/api/actions", headers=SECRET, json=close).status_code == 200
+    db.expire_all()
+    assert db.get(Batch, BATCH).status == "closed"
