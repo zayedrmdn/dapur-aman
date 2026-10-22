@@ -29,7 +29,7 @@ function FindingItem({ finding, index, batchId, refreshed }: { finding: Finding;
     {finding.rule_reference && <p className="mt-2 break-words text-sm text-ink2">Rujukan aturan: {finding.rule_reference}</p>}
     {finding.evidence_gap && <p className="mt-2 text-sm">Bukti belum lengkap: {finding.evidence_gap}</p>}
     {finding.suggested_action && <p className="mt-2 text-sm"><b>Saran tindakan:</b> {finding.suggested_action}</p>}
-    {finding.resolution_text && <p className="mt-3 border-l-4 border-brand bg-mint p-3 text-sm">{finding.resolution_text}</p>}
+    {finding.resolution_text && <p className="mt-3 rounded-xl border border-brand bg-mint p-3 text-sm">{finding.resolution_text}</p>}
     {saved && <p role="status" className="mt-2 text-sm text-brand">Tindakan tersimpan.</p>}
     {finding.state === "open" && !saved && <form onSubmit={act} className="mt-4 flex flex-col gap-3" aria-busy={busy}>
       <label className="text-sm font-medium">Tindakan untuk temuan {index + 1}<select name="action" className={`mt-1 ${inputClass}`} disabled={busy}><option value="fixed">Sudah diperbaiki</option><option value="dismissed">Abaikan dengan alasan</option></select></label>
@@ -99,29 +99,29 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
       <h2 className="text-lg font-extrabold">{batch.table_name}</h2>
       <p className="break-all text-xs text-ink2">Batch {batch.batch_id} - {batch.status === "on_hold" ? "Ditahan supervisor" : batch.status === "closed" ? "Ditutup oleh manusia" : "Dalam peninjauan"}</p>
       <HoldingTimer batch={batch} />
-      {batch.status === "closed" && <div className="rounded border border-brand bg-mint p-3 text-sm text-brand-dark">
+      {batch.status === "closed" && <div className="rounded-xl border border-brand bg-mint p-3 text-sm text-brand-dark">
         <p className="font-bold">Batch ditutup oleh manusia</p>
         <p className="mt-1 text-xs text-ink2">Semua temuan sudah ditangani. Foto hanya membantu melihat kemungkinan masalah; hasil foto bukan jaminan keamanan pangan.</p>
         {isSupervisor ? <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Button size="small" variant="contained" disabled={sendingDispatch} onClick={sendDispatchReport} className="bg-brand text-xs text-white">
+          <Button variant="contained" disabled={sendingDispatch} onClick={sendDispatchReport}>
             {sendingDispatch ? "Mengirim..." : "Kirim surat ke Telegram sekolah"}
           </Button>
-          {dispatchNotice && <span className="text-xs font-semibold text-brand">{dispatchNotice}</span>}
+          {dispatchNotice && <span className="text-xs font-bold text-brand">{dispatchNotice}</span>}
         </div> : <p className="mt-2 text-xs font-semibold">Supervisor yang mengirim surat ke sekolah dari dasbor supervisor.</p>}
       </div>}
-      {canClose && <div className="rounded border-2 border-brand bg-mint p-3 text-sm text-brand-dark">
+      {canClose && <div className="rounded-xl border border-brand bg-mint p-3 text-sm text-brand-dark">
         <p className="font-bold">Tidak ada temuan terbuka</p>
         <p className="mt-1 text-xs text-ink2">Periksa baki secara langsung sebelum menutup batch. Hasil foto bukan jaminan keamanan pangan.</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Button size="small" variant="contained" disabled={closingBatch} onClick={handleCloseBatch} className="bg-brand text-xs font-bold text-white">
+          <Button variant="contained" disabled={closingBatch} onClick={handleCloseBatch}>
             {closingBatch ? "Memproses..." : "Tutup batch"}
           </Button>
-          {closeError && <span className="text-xs font-semibold text-safety">{closeError}</span>}
+          {closeError && <span className="text-xs font-bold text-safety-ink">{closeError}</span>}
         </div>
       </div>}
       {runs.length > 0 && <label className="text-sm font-medium">Foto dan inspeksi<select aria-label="Foto dan inspeksi" value={run.id} onChange={event => setSelectedRun(event.target.value)} className={`mt-1 ${inputClass}`}>{runs.map((item, index) => <option key={item.id} value={item.id}>{index === 0 ? "Terbaru" : "Sebelumnya"}: {time(item.created_at)}</option>)}</select></label>}
-      {run && (run.provider === "fixture" || run.provider.startsWith("test")) && <p className="border-l-4 border-quality bg-quality-bg p-3 text-sm text-quality-ink">SIMULASI / PENGUJIAN TERISOLASI - {run.provider}. Hasil ini bukan inspeksi model langsung.</p>}
-      {!run ? <ErrorMessage>Belum ada inspeksi tersimpan. Unggah foto untuk mulai.</ErrorMessage> : run.state !== "completed" ? <div><ErrorMessage>Inspeksi {run.state === "failed" ? "gagal" : "belum selesai"}. {runErrorLabel(run.error?.code)}</ErrorMessage>{run.error?.message && <p className="mt-1 break-words font-mono text-xs text-ink2">Detail teknis: {run.error.message}</p>}</div> : <p role="status" className="border-l-4 border-quality bg-quality-bg p-3 text-sm text-quality-ink">{run.outcome === "retake_required" ? "Foto perlu diulang; bukti belum cukup." : run.outcome === "clean" ? "Tidak ada masalah terlihat pada hasil ini. Tetap lakukan pemeriksaan manusia." : "Hasil memerlukan peninjauan dan tindakan manusia."}</p>}
+      {run && (run.provider === "fixture" || run.provider.startsWith("test")) && <p className="rounded-xl border border-quality bg-quality-bg p-3 text-sm text-quality-ink">SIMULASI / PENGUJIAN TERISOLASI - {run.provider}. Hasil ini bukan inspeksi model langsung.</p>}
+      {!run ? <ErrorMessage>Belum ada inspeksi tersimpan. Unggah foto untuk mulai.</ErrorMessage> : run.state !== "completed" ? <div><ErrorMessage>Inspeksi {run.state === "failed" ? "gagal" : "belum selesai"}. {runErrorLabel(run.error?.code)}</ErrorMessage>{run.error?.message && <p className="mt-1 break-words font-mono text-xs text-ink2">Detail teknis: {run.error.message}</p>}</div> : <p role="status" className="rounded-xl border border-quality bg-quality-bg p-3 text-sm text-quality-ink">{run.outcome === "retake_required" ? "Foto perlu diulang; bukti belum cukup." : run.outcome === "clean" ? "Tidak ada masalah terlihat pada hasil ini. Tetap lakukan pemeriksaan manusia." : "Hasil memerlukan peninjauan dan tindakan manusia."}</p>}
       {run?.uncertainty?.length > 0 && <div><h3 className="font-bold">Ketidakpastian</h3><ul className="mt-1 list-disc pl-5 text-sm">{run.uncertainty.map((note, index) => <li key={index}>{note}</li>)}</ul></div>}
       <Button variant="outlined" onClick={() => { setSelectedRun(""); void refresh(); }}>Muat ulang hasil tersimpan</Button>
     </div>

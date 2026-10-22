@@ -39,7 +39,7 @@ export default function StaffApp({ review = false }: { review?: boolean }) {
     if (review && id === batchId) void load();
     else router.push(`/staff-review?batch=${encodeURIComponent(id)}`);
   }
-  return <StaffShell title={review ? "Periksa foto. Catat tindakan." : "Pilih batch atau mulai foto baru"} name={user?.name} logout={user ? logout : undefined}>
+  return <StaffShell title={review ? "Periksa foto. Catat tindakan." : "Pilih batch atau mulai foto baru"} name={user?.name} role={user?.role} logout={user ? logout : undefined}>
     {error && <div className="p-4"><ErrorMessage>{error}</ErrorMessage><Button onClick={() => { void load(); }}>Coba muat ulang</Button></div>}
     {notice && <p role="status" className="px-4 pt-4 text-sm">{notice}</p>}
     {!user && !error && <p role="status" className="p-4">Memeriksa sesi...</p>}

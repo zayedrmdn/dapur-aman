@@ -30,7 +30,7 @@ function PhotoPicker({ photo, previewUrl, disabled, picked }: { photo: File | nu
   }
   return <div className="flex min-w-0 flex-col gap-1.5">
     <span className="text-sm font-medium">Foto meja atau rak</span>
-    <div className="grid grid-cols-2 gap-2">
+    <div className="flex flex-col gap-2">
       <Button component="label" variant="outlined" size="large" disabled={disabled} startIcon={<CameraIcon />}>
         Ambil Foto
         <input type="file" accept="image/*" capture="environment" onChange={choose} className="sr-only" />
