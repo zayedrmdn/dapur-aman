@@ -16,9 +16,10 @@ export type Run = {
 export type Batch = {
   batch_id: string; table_name: string; menu_name?: string | null; school_name?: string | null; status: string; photo_url: string | null; created_at: string;
   runs: Run[]; findings: Finding[];
+  hold_reason?: string | null;
   actions: { id: string; action: string; reason: string; actor_name: string; created_at: string }[];
 };
-export type Overview = { packing_photos: { batch_id: string; table_name: string; summary_label: string; status: string; school_name?: string | null; created_at?: string | null }[] };
+export type Overview = { packing_photos: { batch_id: string; table_name: string; summary_label: string; status: string; batch_status?: string; hold_reason?: string | null; school_name?: string | null; created_at?: string | null }[] };
 export type Event = { sequence: number; timestamp: string; agent: string; step: string; kind: string; status: string; summary: string; error: string | null; uncertainty: string | null; references: string[] };
 
 export class ApiError extends Error {
@@ -86,6 +87,7 @@ export type BatchListItem = {
   status: "closed" | "packing" | "finding_open" | "on_hold";
   badge_label: string;
   badge_color: string;
+  hold_reason?: string | null;
   table_name?: string | null;
   school_name?: string | null;
   created_at?: string | null;

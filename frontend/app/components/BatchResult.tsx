@@ -107,6 +107,7 @@ export default function BatchResult({ batch, refresh, isSupervisor = false }: { 
         <TechnicalDetails items={[["ID batch", batch.batch_id]]} />
       </div>
       <HoldingTimer batch={batch} />
+      {batch.status === "on_hold" && <p className="mx-4 break-words rounded-xl border border-safety bg-safety-bg p-3 text-sm font-semibold text-safety-ink">Batch ditahan — jangan distribusikan. {batch.hold_reason || "Lihat alasan di riwayat tindakan manusia."} Foto ulang tetap dapat dikirim; hanya supervisor yang dapat melepaskan tahanan.</p>}
       {batch.status === "closed" && <div className="rounded-xl border border-brand bg-mint p-3 text-sm text-brand-dark">
         <p className="font-bold">Batch ditutup oleh manusia</p>
         <p className="mt-1 text-xs text-ink2">Semua temuan sudah ditangani. Foto hanya membantu melihat kemungkinan masalah; hasil foto bukan jaminan keamanan pangan.</p>

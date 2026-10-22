@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "@mui/material/Button";
@@ -29,8 +29,11 @@ export default function SupervisorDashboardPage() {
   const [activePhotoErr, setActivePhotoErr] = useState<boolean>(false);
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const [currentTime, setCurrentTime] = useState<string>("");
-  const [holdTarget, setHoldTarget] = useState<{ batchId: string; isHold: boolean } | null>(null);
+  const [holdTarget, setHoldTarget] = useState<{ batchId: string; isHold: boolean; placement: "active" | "list" } | null>(null);
   const [holdReason, setHoldReason] = useState<string>("");
+  const [holdFeedback, setHoldFeedback] = useState<{ batchId: string; text: string; error: boolean } | null>(null);
+  const refreshVersion = useRef(0);
+  const actionPending = useRef(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -44,47 +47,33 @@ export default function SupervisorDashboardPage() {
     };
   }, []);
 
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
+    if (actionPending.current) return;
+    const version = ++refreshVersion.current;
     try {
-      const sess = await api<{ user: { name: string; role: string } }>("session");
+      const [sess, res] = await Promise.all([
+        api<{ user: { name: string; role: string } }>("session"),
+        api<SupervisorDashboardData>("supervisor/dashboard"),
+      ]);
+      if (version !== refreshVersion.current || actionPending.current) return;
       if (sess?.user) {
         setUserRole(sess.user.role);
         setUserName(sess.user.name);
       }
-      const res = await api<SupervisorDashboardData>("supervisor/dashboard");
       setData(res);
       setError("");
     } catch (err) {
-      setError(loadErrorMessage(err));
+      if (version === refreshVersion.current) setError(loadErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (version === refreshVersion.current) setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    Promise.all([
-      api<{ user: { name: string; role: string } }>("session").catch(() => null),
-      api<SupervisorDashboardData>("supervisor/dashboard").catch((err) => {
-        if (active) setError(loadErrorMessage(err));
-        return null;
-      }),
-    ]).then(([sess, res]) => {
-      if (!active) return;
-      if (sess?.user) {
-        setUserRole(sess.user.role);
-        setUserName(sess.user.name);
-      }
-      if (res) {
-        setData(res);
-        setError("");
-      }
-      setLoading(false);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
+    const currentRefresh = refreshVersion;
+    const timeout = setTimeout(() => { void loadDashboard(); }, 0);
+    return () => { clearTimeout(timeout); ++currentRefresh.current; };
+  }, [loadDashboard]);
 
   // Auto-refresh interval (every 20s if enabled)
   useEffect(() => {
@@ -93,7 +82,7 @@ export default function SupervisorDashboardPage() {
       void loadDashboard();
     }, 20000);
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, [autoRefresh, loadDashboard]);
 
   async function handleLogout() {
     try {
@@ -105,34 +94,49 @@ export default function SupervisorDashboardPage() {
     }
   }
 
-  function openHoldForm(batchId: string, isHold: boolean) {
-    setHoldTarget({ batchId, isHold });
+  function openHoldForm(batchId: string, isHold: boolean, placement: "active" | "list" = "active") {
+    if (actionPending.current) return;
+    setHoldTarget({ batchId, isHold, placement });
     setHoldReason("");
     setActionNotice("");
+    setHoldFeedback(null);
   }
 
   async function handleHoldBatch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!holdTarget) return;
+    if (!holdTarget || actionPending.current) return;
     const reason = holdReason.trim();
     if (reason.length < 3) return;
     const { batchId, isHold } = holdTarget;
+    actionPending.current = true;
+    ++refreshVersion.current;
     setActionLoading(true);
-    setActionNotice("");
+    setHoldFeedback(null);
     try {
-      await api("actions", {
+      const result = await api<{ success: boolean; batch_status: string; hold_reason: string | null; has_open_findings: boolean }>("actions", {
         batch_id: batchId,
         action: isHold ? "on_hold" : "lift_hold",
         reason,
       });
-
-      setActionNotice(isHold ? `${batchName(batchId)} ditahan.` : `Penahanan ${batchName(batchId)} dicabut.`);
+      if (!result.success || result.batch_status !== (isHold ? "on_hold" : "in_review")) {
+        throw new Error("Status penahanan belum terkonfirmasi. Muat ulang batch sebelum mencoba lagi.");
+      }
+      setData(previous => previous ? { ...previous, batches: previous.batches.map(batch => batch.batch_id === batchId ? {
+        ...batch,
+        status: isHold ? "on_hold" : result.has_open_findings ? "finding_open" : "packing",
+        hold_reason: result.hold_reason,
+        badge_label: isHold ? "On hold" : "Penahanan dilepaskan",
+        badge_color: isHold || result.has_open_findings ? "red" : "yellow",
+      } : batch) } : previous);
+      setHoldFeedback({ batchId, text: isHold ? "Batch ditahan. Jangan distribusikan sebelum penahanan dilepaskan supervisor." : "Penahanan batch dilepaskan oleh supervisor.", error: false });
       setHoldTarget(null);
       setHoldReason("");
+      actionPending.current = false;
       await loadDashboard();
     } catch (err) {
-      setActionNotice(err instanceof Error ? err.message : "Gagal memperbarui status penahanan batch.");
+      setHoldFeedback({ batchId, text: err instanceof Error ? err.message : "Gagal memperbarui status penahanan batch.", error: true });
     } finally {
+      actionPending.current = false;
       setActionLoading(false);
     }
   }
@@ -151,8 +155,8 @@ export default function SupervisorDashboardPage() {
     }
   }
 
-  function holdForm(batchId: string, isHold: boolean) {
-    if (holdTarget?.batchId !== batchId || holdTarget.isHold !== isHold) return null;
+  function holdForm(batchId: string, isHold: boolean, placement: "active" | "list" = "active") {
+    if (holdTarget?.batchId !== batchId || holdTarget.isHold !== isHold || holdTarget.placement !== placement) return null;
     const valid = holdReason.trim().length >= 3;
     return (
       <form onSubmit={handleHoldBatch} className="mt-3 flex w-full flex-col gap-2" aria-busy={actionLoading}>
@@ -171,7 +175,7 @@ export default function SupervisorDashboardPage() {
         </label>
         <div className="flex flex-wrap gap-2">
           <Button type="submit" size="small" variant="contained" color={holdTarget.isHold ? "error" : "primary"} disabled={actionLoading || !valid}>
-            {actionLoading ? "Memproses..." : holdTarget.isHold ? "Tahan batch" : "Cabut penahanan"}
+            {actionLoading ? "Memproses..." : holdTarget.isHold ? "Tahan batch" : "Lepaskan tahanan"}
           </Button>
           <Button type="button" size="small" variant="text" disabled={actionLoading} onClick={() => setHoldTarget(null)}>
             Batal
@@ -179,6 +183,11 @@ export default function SupervisorDashboardPage() {
         </div>
       </form>
     );
+  }
+
+  function holdMessage(batchId: string) {
+    if (holdFeedback?.batchId !== batchId) return null;
+    return <p role={holdFeedback.error ? "alert" : "status"} className={`mt-3 break-words rounded-xl border p-3 text-sm font-semibold ${holdFeedback.error ? "border-safety bg-safety-bg text-safety-ink" : "border-brand bg-mint text-brand-dark"}`}>{holdFeedback.text}</p>;
   }
 
   // Filter batches list
@@ -190,6 +199,7 @@ export default function SupervisorDashboardPage() {
   });
   const onHoldCount = data ? data.batches.filter((b) => b.status === "on_hold").length : 0;
   const closedCount = data ? data.batches.filter((b) => b.status === "closed").length : 0;
+  const activeBatch = data?.batches.find(batch => batch.batch_id === data.active_concern?.batch_id);
   function batchName(batchId: string): string {
     const batch = data?.batches.find((b) => b.batch_id === batchId);
     return batch ? batchHeading(batch.table_name ?? batch.menu_name, batch.school_name) : "Batch ini";
@@ -456,14 +466,18 @@ export default function SupervisorDashboardPage() {
 
                     {/* Supervisor Control Actions */}
                     <div className="border-t border-rule pt-2">
+                      {activeBatch?.status === "on_hold" && <div className="mb-3 rounded-xl border border-safety bg-safety-bg p-3 text-sm text-safety-ink">
+                        <p className="font-bold">Batch ditahan — jangan distribusikan</p>
+                        <p className="mt-1 break-words">{activeBatch.hold_reason || "Alasan penahanan belum tersedia. Buka riwayat batch."}</p>
+                      </div>}
                       <div className="flex flex-wrap items-center gap-2">
                         <Button
                           variant="contained"
                           color="error"
-                          disabled={actionLoading}
-                          onClick={() => openHoldForm(data.active_concern!.batch_id, true)}
+                          disabled={actionLoading || !activeBatch || activeBatch.status === "closed"}
+                          onClick={() => openHoldForm(data.active_concern!.batch_id, activeBatch?.status !== "on_hold")}
                         >
-                          Tahan batch ini
+                          {activeBatch?.status === "on_hold" ? "Lepaskan tahanan" : "Tahan batch"}
                         </Button>
 
                         <Button
@@ -475,7 +489,8 @@ export default function SupervisorDashboardPage() {
                           Buka detail batch
                         </Button>
                       </div>
-                      {holdForm(data.active_concern.batch_id, true)}
+                      {holdForm(data.active_concern.batch_id, activeBatch?.status !== "on_hold")}
+                      {holdMessage(data.active_concern.batch_id)}
                       <TechnicalDetails className="mt-2" items={[["ID batch", data.active_concern.batch_id], ["ID temuan", data.active_concern.finding_id]]} />
                     </div>
                   </div>
@@ -639,6 +654,7 @@ export default function SupervisorDashboardPage() {
 
                 {/* Table / List */}
                 <div className="mt-4 max-h-[500px] divide-y divide-rule overflow-y-auto">
+                  {holdFeedback && !filteredBatches.some(batch => batch.batch_id === holdFeedback.batchId) && holdMessage(holdFeedback.batchId)}
                   {filteredBatches.length === 0 ? (
                     <p className="py-8 text-center text-xs text-ink2">Tidak ada batch untuk filter ini.</p>
                   ) : (
@@ -673,10 +689,10 @@ export default function SupervisorDashboardPage() {
                                 variant="outlined"
                                 color="success"
                                 disabled={actionLoading}
-                                onClick={() => openHoldForm(b.batch_id, false)}
+                                onClick={() => openHoldForm(b.batch_id, false, "list")}
                                 className="text-[11px] font-bold"
                               >
-                                Cabut penahanan
+                                Lepaskan tahanan
                               </Button>
                             )}
 
@@ -703,7 +719,9 @@ export default function SupervisorDashboardPage() {
                             </Button>
                           </div>
                         </div>
-                        {b.status === "on_hold" && holdForm(b.batch_id, false)}
+                        {b.status === "on_hold" && holdForm(b.batch_id, false, "list")}
+                        {b.status === "on_hold" && <p className="mt-2 break-words font-semibold text-safety-ink">Ditahan: {b.hold_reason || "Buka riwayat batch untuk melihat alasan."}</p>}
+                        {holdMessage(b.batch_id)}
                       </div>
                     ))
                   )}

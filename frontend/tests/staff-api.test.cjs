@@ -108,6 +108,12 @@ test("supervisor feed, hold, lift hold and close keep role checks", async () => 
   assert.equal((await act(supervisor, { batch_id: batch, action: "on_hold", reason: "x" })).status, 400);
   const hold = await act(supervisor, { batch_id: batch, action: "on_hold", reason: "Check the tray" });
   assert.equal(hold.status, 200, JSON.stringify(hold.body)); assert.equal(hold.body.actor_id, "test_supervisor");
+  assert.equal(hold.body.batch_status, "on_hold");
+  assert.equal(hold.body.hold_reason, "Check the tray");
+  assert.equal((await act(supervisor, { batch_id: batch, action: "on_hold", reason: "Duplicate request" })).status, 409);
+  const heldList = await (await staffApi(request("overview", staff), "overview")).json();
+  assert.equal(heldList.packing_photos.find(item => item.batch_id === batch).batch_status, "on_hold");
+  assert.equal(heldList.packing_photos.find(item => item.batch_id === batch).hold_reason, "Check the tray");
   assert.equal((await (await staffApi(request(batchPath, staff), batchPath)).json()).status, "on_hold");
   assert.equal((await act(staff, { batch_id: batch, action: "lift_hold", reason: "Staff try" })).status, 403);
   assert.equal((await act(supervisor, { batch_id: batch, action: "lift_hold", reason: "Tray checked" })).status, 200);
@@ -116,6 +122,8 @@ test("supervisor feed, hold, lift hold and close keep role checks", async () => 
   assert.equal((await act(staff, { batch_id: batch, action: "close", reason: "Too early" })).status, 400);
   assert.equal((await act(staff, { batch_id: batch, finding_id: result.findings[0].id, action: "dismissed", reason: "Synthetic false alarm" })).status, 200);
   assert.equal((await act(staff, { batch_id: batch, action: "close", reason: "All findings handled" })).status, 200);
+  assert.equal((await act(supervisor, { batch_id: batch, action: "lift_hold", reason: "Cannot reopen" })).status, 409);
+  assert.equal((await (await staffApi(request(batchPath, staff), batchPath)).json()).status, "closed");
   assert.equal((await (await staffApi(request(batchPath, supervisor), batchPath)).json()).status, "closed");
   assert.equal((await staffApi(request(dispatchPath, staff, {}), dispatchPath)).status, 403);
   assert.equal((await staffApi(request(dispatchPath, supervisor, {}), dispatchPath)).status, 200);

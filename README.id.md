@@ -59,7 +59,7 @@ Setiap tindakan yang mengubah temuan atau batch melewati endpoint tindakan manus
 | Foto ulang | "Periksa foto ulang" menambahkan foto baru ke batch yang sama. Temuan sebelumnya tetap menyimpan keputusan manusia; AI tidak pernah menghapusnya. |
 | Penghitung waktu penyimpanan | Waktu sejak foto pertama batch terhadap batas demo 4 jam. Berwarna kuning pada 30 menit terakhir dan merah setelah batas terlewati. |
 | Dasbor supervisor | Ringkasan angka, temuan keamanan terbuka terbaru, daftar batch yang dapat difilter, dan status per sekolah. Khusus supervisor. |
-| Tahan dan cabut penahanan | "Tahan batch" dan "Cabut penahanan", masing-masing dengan alasan. Khusus supervisor. |
+| Tahan dan cabut penahanan | "Tahan batch" dan "Lepaskan tahanan", masing-masing dengan alasan. Khusus supervisor. |
 | Tutup batch | "Tutup batch" muncul jika batch tidak sedang ditahan, tidak ada temuan terbuka, dan inspeksi terakhir selesai tanpa meminta foto ulang. |
 | Laporan ke sekolah via Telegram | "Laporan Pemeriksaan Batch" untuk kontak sekolah. Dikirim saat supervisor menutup batch, atau atas permintaan supervisor untuk batch yang sudah ditutup. |
 | Peringatan supervisor via Telegram | Peringatan keamanan saat foto pertama memiliki temuan, dan pesan saat foto ulang menunjukkan temuan atau tidak ada masalah terlihat. |
@@ -118,7 +118,7 @@ flowchart LR
 1. Masuk dengan akun supervisor. Aplikasi membuka `/dashboard`. Peran lain mendapat pesan khusus supervisor; backend mengembalikan 403.
 2. Baca ringkasan angka (temuan keamanan, diperbaiki oleh staf, diabaikan, masih terbuka) dan temuan keamanan terbuka terbaru.
 3. Tahan batch dengan "Tahan batch" pada kartu temuan dan alasan (minimal 3 karakter).
-4. Filter batch berdasarkan semua, terbuka, ditahan, atau ditutup. Cabut penahanan dengan "Cabut penahanan" dan alasan.
+4. Filter batch berdasarkan semua, terbuka, ditahan, atau ditutup. Lepaskan penahanan dengan "Lepaskan tahanan" dan alasan. Alasan penahanan tampil di dasbor supervisor dan daftar batch staf.
 5. Buka batch mana pun dengan "Buka detail" untuk meninjaunya seperti staf.
 6. Untuk batch yang sudah ditutup, kirim laporan ke sekolah dengan "Kirim laporan Telegram" (dasbor) atau "Kirim laporan ke Telegram sekolah" (layar peninjauan).
 
@@ -128,11 +128,11 @@ flowchart LR
 | --- | --- | --- |
 | Menandai temuan diperbaiki | Staf atau supervisor | Memerlukan alasan dan inspeksi lebih baru yang selesai dalam batch yang sama; jika tidak, 409. |
 | Mengabaikan temuan | Staf atau supervisor | Memerlukan alasan. Tidak perlu foto ulang. |
-| Menahan atau mencabut penahanan | Khusus supervisor | Memerlukan alasan; staf mendapat 403. |
+| Menahan atau mencabut penahanan | Khusus supervisor | Memerlukan alasan setelah spasi di awal dan akhir dihapus; staf mendapat 403. Penahanan berulang dan pelepasan batch yang sudah ditutup mendapat 409. |
 | Menutup batch | Semua pengguna yang sudah masuk | Ditolak (400) selama masih ada temuan terbuka atau batch sedang ditahan. |
 | Mengirim laporan ke sekolah | Khusus supervisor | Batch harus sudah ditutup (jika tidak, 409). Dikirim otomatis hanya saat supervisor yang menutup batch. |
 
-Alasan minimal 3 karakter (aplikasi juga membatasinya hingga 2000). Penahanan mencegah penutupan batch, tetapi tidak mencegah foto baru atau keputusan atas temuan.
+Alasan minimal 3 karakter setelah spasi di awal dan akhir dihapus (aplikasi juga membatasinya hingga 2000). Penahanan mencegah penutupan batch, tetapi tidak mencegah foto baru atau keputusan atas temuan.
 
 ### Status batch dan inspeksi
 

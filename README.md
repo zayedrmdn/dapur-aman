@@ -59,7 +59,7 @@ Every action that changes a finding or a batch goes through the human action end
 | Retake | "Periksa foto ulang" adds a new photo to the same batch. Earlier findings keep their human decisions; the AI never clears them. |
 | Holding timer | Time since the batch's first photo against a 4-hour demo limit. Turns amber in the last 30 minutes and red after the limit. |
 | Supervisor dashboard | Headline counts, the latest open safety concern, a filterable batch list and per-school status. Supervisor only. |
-| Hold and lift hold | "Tahan batch" and "Cabut penahanan", each with a reason. Supervisor only. |
+| Hold and lift hold | "Tahan batch" and "Lepaskan tahanan", each with a reason. Supervisor only. |
 | Close batch | "Tutup batch" appears when the batch is not on hold, no findings are open, and the latest run completed without asking for a retake. |
 | School report via Telegram | "Laporan Pemeriksaan Batch" to the school contact. Sent when a supervisor closes a batch, or on demand by a supervisor for a closed batch. |
 | Supervisor alerts via Telegram | A safety alert when a first photo has findings, and a message when a retake shows findings or no visible concern. |
@@ -118,7 +118,7 @@ flowchart LR
 1. Sign in with a supervisor account. The app opens `/dashboard`. Other roles get a supervisor-only message; the backend returns 403.
 2. Read the headline counts (safety findings, fixed by staff, dismissed, still open) and the latest open safety concern.
 3. Hold a batch with "Tahan batch" on the concern card and a reason (at least 3 characters).
-4. Filter batches by all, open, held or closed. Lift a hold with "Cabut penahanan" and a reason.
+4. Filter batches by all, open, held or closed. Release a hold with "Lepaskan tahanan" and a reason. Held batches show the hold reason in the supervisor dashboard and staff list.
 5. Open any batch with "Buka detail" to review it like staff do.
 6. For a closed batch, send the school report with "Kirim laporan Telegram" (dashboard) or "Kirim laporan ke Telegram sekolah" (review screen).
 
@@ -128,11 +128,11 @@ flowchart LR
 | --- | --- | --- |
 | Mark a finding fixed | Staff or supervisor | Needs a reason and a newer completed run in the same batch; otherwise 409. |
 | Dismiss a finding | Staff or supervisor | Needs a reason. No retake needed. |
-| Place or lift a hold | Supervisor only | Needs a reason; staff get 403. |
+| Place or lift a hold | Supervisor only | Needs a trimmed reason; staff get 403. Repeated holds and releasing a closed batch return 409. |
 | Close a batch | Any signed-in user | Refused (400) while any finding is open or the batch is on hold. |
 | Send the school report | Supervisor only | Batch must be closed (409 otherwise). Sent automatically only when a supervisor closes the batch. |
 
-Reasons must be at least 3 characters (the app also caps them at 2000). A hold blocks closing, but not new photos or finding decisions.
+Reasons must be at least 3 characters after trimming (the app also caps them at 2000). A hold blocks closing, but not new photos or finding decisions.
 
 ### Batch and run states
 
