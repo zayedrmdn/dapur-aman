@@ -638,13 +638,13 @@ Remember that the backend changes the schema of the database in `DATABASE_URL` o
 
 None of the automated tests call a paid model, Neon, object storage or Telegram.
 
-**Backend** (from `backend/`; uses a throwaway SQLite file and scripted model replies):
+**Backend** (from `backend/`; uses in-memory SQLite and scripted model replies):
 
 ```sh
-DATABASE_URL=sqlite:///./test-tmp.db BACKEND_SHARED_SECRET=test-secret uv run --with pytest --with httpx pytest -q
+uv run --with pytest --with httpx pytest -q
 ```
 
-Result on 22 October 2026: 90 passed (9 test files). Delete `test-tmp.db` afterwards. Set `DATABASE_URL` as shown: `backend/.env` is loaded otherwise, so the command line is what keeps the tests off a real database. `backend/conftest.py` blanks the Telegram settings and blocks Telegram sends in every test.
+Result on 22 October 2026: 92 passed (10 test files). `backend/conftest.py` forces in-memory SQLite before the app loads and stops the run if the configured database is still in use, so tests never reach Neon. It also blanks the Telegram settings and blocks Telegram sends in every test.
 
 | File | Covers |
 | --- | --- |
@@ -657,6 +657,7 @@ Result on 22 October 2026: 90 passed (9 test files). Delete `test-tmp.db` afterw
 | `tests/app/test_staff_integration.py` | Data routes need a verified actor; run events |
 | `tests/app/test_notifications.py` | School report wording and deadline (nothing sent) |
 | `tests/app/test_telegram_isolation.py` | Telegram settings blank and HTTP blocked during tests |
+| `tests/app/test_database_isolation.py` | Tests run on in-memory SQLite, never the configured database |
 
 Do not run `backend/test_vision.py` or `backend/test_backend_full.py` casually: they are manual scripts that call live services, and `test_vision.py` makes a paid model call.
 

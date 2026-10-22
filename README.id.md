@@ -638,13 +638,13 @@ Ingat bahwa backend mengubah skema database di `DATABASE_URL` saat mulai (lihat 
 
 Tidak ada tes otomatis yang memanggil model berbayar, Neon, object storage, atau Telegram.
 
-**Backend** (dari `backend/`; memakai file SQLite sementara dan balasan model yang sudah diskenariokan):
+**Backend** (dari `backend/`; memakai SQLite in-memory dan balasan model yang sudah diskenariokan):
 
 ```sh
-DATABASE_URL=sqlite:///./test-tmp.db BACKEND_SHARED_SECRET=test-secret uv run --with pytest --with httpx pytest -q
+uv run --with pytest --with httpx pytest -q
 ```
 
-Hasil pada 22 Oktober 2026: 90 lulus (9 file tes). Hapus `test-tmp.db` setelahnya. Isi `DATABASE_URL` seperti contoh: tanpa itu `backend/.env` yang dimuat, sehingga baris perintah inilah yang menjauhkan tes dari database sungguhan. `backend/conftest.py` mengosongkan pengaturan Telegram dan memblokir pengiriman Telegram di setiap tes.
+Hasil pada 22 Oktober 2026: 92 lulus (10 file tes). `backend/conftest.py` memaksa SQLite in-memory sebelum aplikasi dimuat dan menghentikan tes jika database yang dikonfigurasi masih dipakai, sehingga tes tidak pernah menjangkau Neon. File ini juga mengosongkan pengaturan Telegram dan memblokir pengiriman Telegram di setiap tes.
 
 | File | Cakupan |
 | --- | --- |
@@ -657,6 +657,7 @@ Hasil pada 22 Oktober 2026: 90 lulus (9 file tes). Hapus `test-tmp.db` setelahny
 | `tests/app/test_staff_integration.py` | Route data memerlukan aktor terverifikasi; event inspeksi |
 | `tests/app/test_notifications.py` | Isi dan batas waktu laporan ke sekolah (tanpa pengiriman) |
 | `tests/app/test_telegram_isolation.py` | Pengaturan Telegram kosong dan HTTP diblokir selama tes |
+| `tests/app/test_database_isolation.py` | Tes berjalan di SQLite in-memory, tidak pernah di database yang dikonfigurasi |
 
 Jangan menjalankan `backend/test_vision.py` atau `backend/test_backend_full.py` sembarangan: keduanya skrip manual yang memanggil layanan langsung, dan `test_vision.py` melakukan panggilan model berbayar.
 
