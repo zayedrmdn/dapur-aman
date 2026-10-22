@@ -15,7 +15,7 @@ Shared working reference for Dapur Aman: decisions, ownership, contracts and wor
 | Neon | Project, private photo bucket and credentials configured and tested |
 | Vercel | Production deploys from `main` (dapur-aman.vercel.app); login waits for the backend URL |
 | Vertex AI | Verified locally with the organizer project |
-| Cloud Run | Blocked: the build service account needs `roles/run.builder` and `roles/aiplatform.user` from the organizer |
+| Cloud Run | Private service deployed (`asia-southeast2`) but unused: the runtime service account lacks `roles/aiplatform.user`, and the team cannot create service-account keys. The laptop and Quick Tunnel serve production (README) |
 
 **Next actions**
 
