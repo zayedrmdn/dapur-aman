@@ -12,7 +12,7 @@ export type Run = {
   error: { code?: string; message?: string; retryable?: boolean } | null;
 };
 export type Batch = {
-  batch_id: string; table_name: string; status: string; photo_url: string | null;
+  batch_id: string; table_name: string; menu_name?: string | null; status: string; photo_url: string | null;
   runs: Run[]; findings: Finding[];
   actions: { id: string; action: string; reason: string; actor_name: string; created_at: string }[];
 };

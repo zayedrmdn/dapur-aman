@@ -4,6 +4,7 @@ import Button from "@mui/material/Button";
 import { api, ApiError } from "@/lib/contracts";
 import { ErrorMessage, inputClass } from "./StaffShell";
 import { CameraIcon, GalleryIcon } from "./icons";
+import MenuTags, { splitMenu } from "./MenuTags";
 
 async function preparePhoto(file: File): Promise<File> {
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Pilih foto JPEG, PNG, atau WebP.");
@@ -47,7 +48,9 @@ function PhotoPicker({ photo, previewUrl, disabled, picked }: { photo: File | nu
   </div>;
 }
 
-export default function UploadForm({ batchId, retake = false, done }: { batchId?: string; retake?: boolean; done: (id: string) => void }) {
+const DEMO_MENU = "Nasi putih, Ayam kecap, Tumis buncis, Tahu goreng, Anggur";
+
+export default function UploadForm({ batchId, menu, retake = false, done }: { batchId?: string; menu?: string | null; retake?: boolean; done: (id: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
@@ -61,6 +64,7 @@ export default function UploadForm({ batchId, retake = false, done }: { batchId?
     event.preventDefault(); const form = new FormData(event.currentTarget);
     setBusy(true); setError("");
     try {
+      if (!String(form.get("menu_items") ?? "").trim()) throw new Error("Tambahkan minimal satu komponen menu.");
       if (!photo || !photo.size) throw new Error("Ambil atau pilih foto meja atau rak.");
       form.set("photo", await preparePhoto(photo));
       if (batchId) form.set("batch_id", batchId);
@@ -90,10 +94,7 @@ export default function UploadForm({ batchId, retake = false, done }: { batchId?
           Nama meja atau lini packing
           <input name="table_name" required maxLength={100} defaultValue={retake ? undefined : "Meja 1"} placeholder="Contoh: Meja 1" className={inputClass} />
         </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Komponen menu yang seharusnya ada
-          <textarea name="menu_items" required maxLength={2000} rows={2} defaultValue={retake ? undefined : "Nasi putih, Ayam kecap, Tumis buncis, Tahu goreng, Anggur"} placeholder="Pisahkan dengan koma: nasi, ayam, sayur" className={inputClass} />
-        </label>
+        <MenuTags initial={splitMenu(batchId ? menu ?? "" : DEMO_MENU)} />
         <PhotoPicker photo={photo} previewUrl={previewUrl} disabled={busy} picked={pickPhoto} />
       </fieldset>
       <p className="text-xs text-ink2">Foto dikonversi ke JPEG, sisi panjang hingga 1600 piksel. Gunakan foto yang jelas sebelum tutup dipasang.</p>
