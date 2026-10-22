@@ -6,7 +6,7 @@ from PIL import Image
 
 import app.main
 from agents.contract import ActivityEvent, ErrorStage, InspectionOutcome, Outcome, RunError, RunState
-from app.models import Batch, Finding
+from app.models import Batch, Finding, Run
 from tests.app.test_retake_supervisor import api
 
 SECRET = {"X-Shared-Secret": "test-secret", "X-Actor-Id": "staff"}
@@ -77,3 +77,26 @@ def test_only_supervisor_close_sends_clearance_letter(api, letters, actor, expec
     response = client.post("/api/actions", headers={**SECRET, "X-Actor-Id": actor}, json={"batch_id": BATCH, "action": "close", "reason": "All findings handled"})
     assert response.status_code == 200, response.text
     assert letters == expected_letters
+
+
+@pytest.mark.parametrize("newer_run_state,expected", [(None, 409), ("failed", 409), ("completed", 200)])
+def test_fixed_requires_a_newer_completed_retake(api, newer_run_state, expected):
+    client, db = api
+    newer_run = db.get(Run, "new_run")
+    if newer_run_state:
+        newer_run.state = newer_run_state
+    else:
+        db.delete(newer_run)
+    db.commit()
+    response = client.post("/api/actions", headers=SECRET, json={"batch_id": BATCH, "finding_id": "old_finding", "action": "fixed", "reason": "Replaced the portion"})
+    assert response.status_code == expected, response.text
+    db.expire_all()
+    assert db.get(Finding, "old_finding").status == ("fixed" if expected == 200 else "open")
+
+
+def test_dismissed_does_not_need_a_retake(api):
+    client, db = api
+    db.delete(db.get(Run, "new_run"))
+    db.commit()
+    response = client.post("/api/actions", headers=SECRET, json={"batch_id": BATCH, "finding_id": "old_finding", "action": "dismissed", "reason": "False alarm checked by hand"})
+    assert response.status_code == 200, response.text

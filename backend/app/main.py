@@ -810,6 +810,22 @@ def get_batch_detail(
     )
 
 
+def has_newer_completed_run(db: Session, finding: Finding) -> bool:
+    finding_run = db.get(Run, finding.run_id)
+    if not finding_run:
+        return False
+    return (
+        db.query(Run)
+        .filter(
+            Run.batch_id == finding.batch_id,
+            Run.state == RunState.COMPLETED.value,
+            Run.created_at > finding_run.created_at,
+        )
+        .first()
+        is not None
+    )
+
+
 @app.post(
     "/api/actions",
     response_model=ActionResponse,
@@ -826,7 +842,7 @@ async def record_human_action(
 
     - **Role Check**: Hanya role 'supervisor' yang berwenang melakukan 'on_hold' dan 'lift_hold'.
     - **Actions**:
-      * `fixed`: Tandai temuan sudah diperbaiki (membutuhkan finding_id dan alasan).
+      * `fixed`: Tandai temuan sudah diperbaiki (membutuhkan finding_id, alasan, dan foto ulang yang selesai diperiksa).
       * `dismissed`: Abaikan temuan dengan catatan alasan.
       * `on_hold`: Tahan baki untuk investigasi lebih lanjut (supervisor only).
       * `lift_hold`: Lepas penahanan baki (supervisor only).
@@ -857,6 +873,11 @@ async def record_human_action(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Finding '{payload.finding_id}' tidak ditemukan.",
+            )
+        if payload.action == "fixed" and not has_newer_completed_run(db, finding):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Ambil foto ulang dulu. Temuan hanya dapat ditandai diperbaiki setelah foto ulang selesai diperiksa.",
             )
         if payload.action == "fixed":
             finding.status = "fixed"
