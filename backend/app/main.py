@@ -83,6 +83,7 @@ from app.notifications import (
 
 logger = logging.getLogger("dapur_aman.api")
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 @asynccontextmanager
