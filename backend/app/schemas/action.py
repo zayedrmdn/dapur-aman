@@ -1,7 +1,7 @@
 """Schemas for human actions (resolutions, holds, closing batch)."""
 
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ActionRequest(BaseModel):
@@ -13,6 +13,11 @@ class ActionRequest(BaseModel):
         ..., description="Resolution or status change action"
     )
     reason: str = Field(..., min_length=3, description="Explanation or justification for the action")
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def trim_reason(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
 
 class ActionResponse(BaseModel):

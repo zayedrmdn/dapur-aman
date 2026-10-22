@@ -867,6 +867,10 @@ async def record_human_action(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Hanya supervisor yang berwenang menempatkan atau mencabut status on_hold.",
             )
+        if payload.action == "on_hold" and batch.status == "on_hold":
+            raise HTTPException(status_code=409, detail="Batch sudah ditahan. Muat ulang status batch.")
+        if payload.action == "lift_hold" and batch.status == "closed":
+            raise HTTPException(status_code=409, detail="Batch sudah ditutup. Penahanan tidak dapat dicabut.")
 
     if payload.action in ("fixed", "dismissed") and not payload.finding_id:
         raise HTTPException(status_code=400, detail="A finding_id is required for this action.")

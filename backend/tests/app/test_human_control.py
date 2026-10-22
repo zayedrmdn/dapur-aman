@@ -6,7 +6,7 @@ from PIL import Image
 
 import app.main
 from agents.contract import ActivityEvent, ErrorStage, InspectionOutcome, Outcome, RunError, RunState
-from app.models import Batch, Finding, Run
+from app.models import Batch, Finding, HumanAction, Run
 from tests.app.test_retake_supervisor import api
 
 SECRET = {"X-Shared-Secret": "test-secret", "X-Actor-Id": "staff"}
@@ -118,3 +118,42 @@ def test_staff_close_needs_handled_findings_and_no_hold_and_only_supervisor_hold
     assert client.post("/api/actions", headers=SECRET, json=close).status_code == 200
     db.expire_all()
     assert db.get(Batch, BATCH).status == "closed"
+
+
+@pytest.mark.parametrize("action", ["on_hold", "lift_hold"])
+@pytest.mark.parametrize("reason", ["   ", " \n\t ", " x "])
+def test_hold_actions_reject_blank_or_short_trimmed_reasons(api, action, reason):
+    client, db = api
+    response = client.post("/api/actions", headers={**SECRET, "X-Actor-Id": "supervisor"},
+                           json={"batch_id": BATCH, "action": action, "reason": reason})
+    assert response.status_code == 422
+    assert db.query(HumanAction).count() == 0
+    assert db.get(Batch, BATCH).status == "in_review"
+
+
+def test_repeated_hold_preserves_original_reason_and_history(api):
+    client, db = api
+    headers = {**SECRET, "X-Actor-Id": "supervisor"}
+    payload = {"batch_id": BATCH, "action": "on_hold", "reason": "  Check the portion  "}
+    assert client.post("/api/actions", headers=headers, json=payload).status_code == 200
+    payload["reason"] = "Repeated hold must not replace the reason"
+    assert client.post("/api/actions", headers=headers, json=payload).status_code == 409
+    db.expire_all()
+    assert db.get(Batch, BATCH).hold_reason == "Check the portion"
+    assert db.get(Batch, BATCH).status == "on_hold"
+    history = db.query(HumanAction).all()
+    assert len(history) == 1
+    assert history[0].reason == "Check the portion"
+
+
+def test_release_cannot_reopen_closed_batch_or_add_history(api):
+    client, db = api
+    batch = db.get(Batch, BATCH)
+    batch.status = "closed"
+    db.commit()
+    response = client.post("/api/actions", headers={**SECRET, "X-Actor-Id": "supervisor"},
+                           json={"batch_id": BATCH, "action": "lift_hold", "reason": "Cannot reopen"})
+    assert response.status_code == 409
+    db.expire_all()
+    assert db.get(Batch, BATCH).status == "closed"
+    assert db.query(HumanAction).count() == 0
