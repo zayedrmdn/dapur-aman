@@ -12,7 +12,7 @@ Every row below comes from a run the team actually did, with its date and source
 
 What the backend tests cover is listed per file in [README → Testing](../README.md#testing). Key human-control test: `test_ai_never_closes_batch_or_resolves_findings`.
 
-## 2. Real-model run on the demo model (22 Oct 2026)
+## 2. Real-model runs on the demo model (22 Oct 2026)
 
 **Scenario: hair on the rice.** Tray photo with a strand of hair on the rice, menu *nasi putih, tempe orek, ayam goreng, tumis buncis wortel, pisang, susu kotak*. One real `run_inspection` call on Vertex AI, model `gemini-3.8-flash`, no database writes.
 
@@ -28,6 +28,28 @@ What the backend tests cover is listed per file in [README → Testing](../READM
 | Result | **Pass**: hair detected and located correctly; the AI asked for review and did not clear or close anything |
 
 Full output: [`media/evidence/s1-hair-in-rice.json`](media/evidence/s1-hair-in-rice.json).
+
+**Scenario: clean tray (control).** Same menu, a tray with no visible concern.
+
+![AI result: clean tray, no boxes](media/evidence/s2-clean-tray.jpg)
+
+| Field | Actual output |
+| --- | --- |
+| Run | `completed`, outcome **`no_visible_concern`**, 46.0 s, 0 findings |
+| Uncertainty | "Internal cooking temperatures and microbial safety cannot be confirmed from a photo alone." |
+| Next action | "Proceed with standard meal service checks before distribution." |
+| Result | **Pass**: no false finding, and the AI still does not call the food safe |
+
+Full output: [`media/evidence/s2-clean-tray.json`](media/evidence/s2-clean-tray.json).
+
+**Scenario: missing item (empty compartment).** A tray with one empty compartment, checked against a menu that lists *buah pisang*. Two attempts, both real:
+
+| Attempt | Actual output | Result |
+| --- | --- | --- |
+| 1 | `failed`, `model_error`: "The compliance model call failed (DEADLINE_EXCEEDED)", after 70.8 s | **Fail, safe**: no outcome shown, nothing marked clean |
+| 2 | `failed`, `model_error`: "The orchestrator model call failed (DEADLINE_EXCEEDED)", after 44.8 s | **Fail, safe** |
+
+Vertex AI was timing out at the time. The scenario was not re-run; its detection is **not demonstrated**. Records: [`attempt 1`](media/evidence/s3-timeout-failed.json), [`attempt 2`](media/evidence/s3-timeout-failed-retry.json).
 
 ## 3. Earlier real-model and live scenarios (21–22 Oct)
 

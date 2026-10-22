@@ -1,0 +1,26 @@
+{
+  "state": "completed",
+  "outcome": "no_visible_concern",
+  "findings": [],
+  "uncertainty": [
+    "Internal cooking temperatures and microbial safety cannot be confirmed from a photo alone."
+  ],
+  "next_action": "Proceed with standard meal service checks before distribution.",
+  "error": null,
+  "provider": "vertex",
+  "model": "gemini-3.8-flash",
+  "event_count": 5,
+  "agents": [
+    "orchestrator",
+    "vision"
+  ],
+  "seconds": 46.0,
+  "menu_items": [
+    "nasi putih",
+    "tempe orek",
+    "ayam goreng",
+    "tumis buncis wortel",
+    "pisang",
+    "susu kotak"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "state": "failed",
+  "outcome": null,
+  "findings": [],
+  "uncertainty": [],
+  "next_action": null,
+  "error": {
+    "code": "model_error",
+    "message": "The orchestrator model call failed (DEADLINE_EXCEEDED).",
+    "stage": "provider",
+    "retryable": true
+  },
+  "provider": "vertex",
+  "model": "gemini-3.8-flash",
+  "event_count": 3,
+  "agents": [
+    "orchestrator"
+  ],
+  "seconds": 44.8,
+  "menu_items": [
+    "nasi putih",
+    "kacang goreng",
+    "ayam bumbu merah",
+    "tumis jagung buncis",
+    "buah pisang"
+  ]
+}
