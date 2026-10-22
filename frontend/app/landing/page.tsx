@@ -21,7 +21,7 @@ export default function Home() {
                             </svg>
                             </span>
                         </a>
-                        <a className="MuiButtonBase-root MuiButton-root MuiButton-outlined MuiButton-sizeLarge MuiButton-colorPrimary MuiButton-disableElevation h-13 border-white px-6 text-base text-white mui-13nis48" href="/staff">
+                        <a className="MuiButtonBase-root MuiButton-root MuiButton-outlined MuiButton-sizeLarge MuiButton-colorPrimary MuiButton-disableElevation h-13 border-white px-6 text-base text-white mui-13nis48" href="/dashboard">
                             Supervisor feed
                         </a>
                     </div>
