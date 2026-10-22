@@ -108,7 +108,12 @@ export function backendLabel(value: string | null | undefined): string {
   return /^[a-z0-9]+(_[a-z0-9]+)+$/.test(text) ? humanise(text) : text;
 }
 
-/** "<batch> - found 22 Oct 00:28 UTC" to Bahasa; the time is already UTC from the backend, converted to WIB. */
+/** The one user-facing date and time format: "22 Okt, 10.49 WIB". */
+export function formatWib(date: Date): string {
+  return `${date.toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} WIB`;
+}
+
+/** "<batch> - found 22 Oct 00:28 UTC" to "Ditemukan 22 Okt, 07.28 WIB"; the batch id stays out of the text. */
 export function findingSubtitle(value: string | null | undefined): string {
   if (!value) return "";
   const m = /^(.*) - found (\d{1,2}) ([A-Za-z]{3}) (\d{2}):(\d{2}) UTC$/.exec(value.trim());
@@ -117,9 +122,7 @@ export function findingSubtitle(value: string | null | undefined): string {
   const month = months.indexOf(m[3].toLowerCase());
   if (month < 0) return value;
   const year = new Date().getUTCFullYear();
-  const date = new Date(Date.UTC(year, month, Number(m[2]), Number(m[4]), Number(m[5])));
-  const formatted = date.toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-  return `${m[1]} - ditemukan ${formatted} WIB`;
+  return `Ditemukan ${formatWib(new Date(Date.UTC(year, month, Number(m[2]), Number(m[4]), Number(m[5]))))}`;
 }
 
 const AGENT_LABELS: Record<string, string> = {

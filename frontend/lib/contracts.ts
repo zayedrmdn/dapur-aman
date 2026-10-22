@@ -1,3 +1,5 @@
+import { formatWib } from "./labels";
+
 export type Finding = {
   id: string; title: string; level: "safety" | "quality"; detail: string;
   state: "open" | "fixed" | "dismissed";
@@ -42,7 +44,7 @@ export function parseUtc(value: string) {
   return new Date(/(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value}Z`);
 }
 export function time(value: string) {
-  return parseUtc(value).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
+  return formatWib(parseUtc(value));
 }
 
 export type SafetyFeedItem = {
