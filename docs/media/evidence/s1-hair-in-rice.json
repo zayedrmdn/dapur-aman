@@ -1,0 +1,43 @@
+{
+  "state": "completed",
+  "outcome": "review_required",
+  "findings": [
+    {
+      "level": "safety",
+      "concern_type": "hair",
+      "box": {
+        "x_min": 0.64,
+        "y_min": 0.2,
+        "x_max": 0.75,
+        "y_max": 0.35
+      },
+      "explanation": "A strand of hair is visible resting on top of the white rice, posing a physical hygiene hazard.",
+      "rule_reference": "rule-table-v1:foreign-01",
+      "evidence_gap": null,
+      "suggested_action": "Remove or replace the affected portion, then retake the photo."
+    }
+  ],
+  "uncertainty": [
+    "Whether other portions in the batch contain physical contaminants"
+  ],
+  "next_action": "Replace the contaminated rice portion and check the tray before serving.",
+  "error": null,
+  "provider": "vertex",
+  "model": "gemini-3.8-flash",
+  "event_count": 14,
+  "agents": [
+    "compliance",
+    "orchestrator",
+    "vision",
+    "workflow"
+  ],
+  "seconds": 55.7,
+  "menu_items": [
+    "nasi putih",
+    "tempe orek",
+    "ayam goreng",
+    "tumis buncis wortel",
+    "pisang",
+    "susu kotak"
+  ]
+}

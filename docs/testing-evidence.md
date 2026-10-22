@@ -12,7 +12,26 @@ Every row below comes from a run the team actually did, with its date and source
 
 What the backend tests cover is listed per file in [README → Testing](../README.md#testing). Key human-control test: `test_ai_never_closes_batch_or_resolves_findings`.
 
-## 2. Real-model and live scenarios
+## 2. Real-model run on the demo model (22 Oct 2026)
+
+**Scenario: hair on the rice.** Tray photo with a strand of hair on the rice, menu *nasi putih, tempe orek, ayam goreng, tumis buncis wortel, pisang, susu kotak*. One real `run_inspection` call on Vertex AI, model `gemini-3.8-flash`, no database writes.
+
+![AI result: hair box on the rice](media/evidence/s1-hair-in-rice.jpg)
+
+| Field | Actual output |
+| --- | --- |
+| Run | `completed`, outcome **`review_required`**, 55.7 s, 14 events from Orchestrator, Vision and Compliance |
+| Finding 1 | **safety / hair**, box on the rice (drawn above, red = safety) |
+| Explanation | "A strand of hair is visible resting on top of the white rice, posing a physical hygiene hazard." |
+| Rule | `rule-table-v1:foreign-01` |
+| Suggested action | "Remove or replace the affected portion, then retake the photo." |
+| Result | **Pass**: hair detected and located correctly; the AI asked for review and did not clear or close anything |
+
+Full output: [`media/evidence/s1-hair-in-rice.json`](media/evidence/s1-hair-in-rice.json).
+
+## 3. Earlier real-model and live scenarios (21–22 Oct)
+
+Rows S1–S4 ran on the earlier model `gemini-3.5-flash-lite`, before the backend switched to `gemini-3.8-flash`.
 
 | # | Scenario | Input | Actual output | Result |
 | --- | --- | --- | --- | --- |
@@ -27,14 +46,14 @@ What the backend tests cover is listed per file in [README → Testing](../READM
 
 Not exercised on production data: hold, release and close refusals (covered by backend tests only).
 
-## 3. Human oversight
+## 4. Human oversight
 
 - The AI only proposes: concerns, rule match, uncertainty and one next step. It never marks food safe, resolves a finding, places or lifts a hold, or closes a batch.
 - Those actions go through the human action endpoint, which the agents never call (checked by `test_ai_never_closes_batch_or_resolves_findings`).
 - Holds and releases need a written reason from the supervisor. A finding marked fixed needs a retake photo.
 - A failed or invalid run is never shown as clean (`test_inspection_api.py`, S2, S5).
 
-## 4. Known failures and limitations
+## 5. Known failures and limitations
 
 - Photo-only evidence: no temperature, smell, texture or microbiological check.
 - Rules are demo assumptions, not yet linked to a regulation; the 4-hour holding limit is unverified.
