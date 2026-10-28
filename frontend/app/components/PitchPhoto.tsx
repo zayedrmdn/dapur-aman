@@ -32,7 +32,7 @@ function leader(mark: Mark) {
 export default function PitchPhoto() {
   return <figure className="relative overflow-hidden rounded-2xl bg-[#d8d4cc] shadow-[0_12px_32px_rgba(0,0,0,.25)]" style={{ aspectRatio: `${FRAME.w} / ${FRAME.h}` }}>
     {/* eslint-disable-next-line @next/next/no-img-element -- The photo is cropped with CSS, so the optimizer cannot size it. */}
-    <img src={PHOTO} alt="A packing photo with three spots ringed: the chicken, beside the tofu, and the greens" className="absolute max-w-none" style={{ width: `${SRC.w / FRAME.w * 100}%`, left: `${-FRAME.x / FRAME.w * 100}%`, top: `${-FRAME.y / FRAME.h * 100}%` }} />
+    <img src={PHOTO} alt="Foto pengemasan dengan tiga tanda contoh pada ayam, di samping tahu, dan sayuran" className="absolute max-w-none" style={{ width: `${SRC.w / FRAME.w * 100}%`, left: `${-FRAME.x / FRAME.w * 100}%`, top: `${-FRAME.y / FRAME.h * 100}%` }} />
     <svg viewBox={`0 0 ${FRAME.w} ${FRAME.h}`} className="absolute inset-0 size-full" aria-hidden="true">
       {MARKS.map(mark => {
         const colour = mark.level === "safety" ? "var(--color-safety)" : "#e0a800";

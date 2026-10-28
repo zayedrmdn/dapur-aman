@@ -29,12 +29,13 @@ export default function Login() {
         <label htmlFor="password" className="font-medium">Kata sandi</label>
         <div className="relative">
           <input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required maxLength={200} className={`${inputClass} pr-12`} />
-          <button type="button" onClick={() => setShowPassword(shown => !shown)} aria-label="Tampilkan kata sandi" aria-pressed={showPassword} aria-controls="password" className="absolute inset-y-0 right-0 grid w-12 place-items-center rounded-r-xl text-ink2 hover:text-brand">
+          <button type="button" onClick={() => setShowPassword(shown => !shown)} aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} aria-pressed={showPassword} aria-controls="password" className="absolute inset-y-0 right-0 grid w-12 place-items-center rounded-r-xl text-ink2 hover:text-brand">
             {showPassword ? <EyeOffIcon /> : <EyeIcon />}
           </button>
         </div>
       </div>
       {error && <ErrorMessage>{error}</ErrorMessage>}
+      {error && <p className="text-sm text-ink2">Jika tidak dapat masuk, hubungi penanggung jawab akun di tim dapur.</p>}
       <Button type="submit" variant="contained" size="large" disabled={busy}>{busy ? "Memeriksa akun..." : "Masuk"}</Button>
     </form>
   </StaffShell>;
