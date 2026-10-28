@@ -31,24 +31,12 @@ export default function SupervisorDashboardPage() {
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [activePhotoErr, setActivePhotoErr] = useState<boolean>(false);
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
-  const [currentTime, setCurrentTime] = useState<string>("");
+  const [lastUpdated, setLastUpdated] = useState<string>("");
   const [holdTarget, setHoldTarget] = useState<{ batchId: string; isHold: boolean; placement: "active" | "list" } | null>(null);
   const [holdReason, setHoldReason] = useState<string>("");
   const [holdFeedback, setHoldFeedback] = useState<{ batchId: string; text: string; error: boolean } | null>(null);
   const refreshVersion = useRef(0);
   const actionPending = useRef(false);
-
-  useEffect(() => {
-    const updateTime = () => {
-      setCurrentTime(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }));
-    };
-    const timeout = setTimeout(updateTime, 0);
-    const timer = setInterval(updateTime, 15000);
-    return () => {
-      clearTimeout(timeout);
-      clearInterval(timer);
-    };
-  }, []);
 
   const loadDashboard = useCallback(async () => {
     if (actionPending.current) return;
@@ -64,6 +52,7 @@ export default function SupervisorDashboardPage() {
         setUserName(sess.user.name);
       }
       setData(res);
+      setLastUpdated(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Jakarta" }));
       setError("");
     } catch (err) {
       if (version === refreshVersion.current) setError(loadErrorMessage(err));
@@ -140,20 +129,6 @@ export default function SupervisorDashboardPage() {
       setHoldFeedback({ batchId, text: err instanceof Error ? err.message : "Gagal memperbarui status penahanan batch.", error: true });
     } finally {
       actionPending.current = false;
-      setActionLoading(false);
-    }
-  }
-
-  async function handleSendTelegram(batchId: string) {
-    setActionLoading(true);
-    setActionNotice("");
-    try {
-      await api(`notifications/dispatch-report/${encodeURIComponent(batchId)}`, {});
-      setActionNotice(`Laporan untuk ${batchName(batchId)} terkirim ke Telegram sekolah.`);
-      await loadDashboard();
-    } catch (err) {
-      setActionNotice(err instanceof Error ? err.message : "Gagal mengirim notifikasi Telegram.");
-    } finally {
       setActionLoading(false);
     }
   }
@@ -245,7 +220,7 @@ export default function SupervisorDashboardPage() {
               <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${autoRefresh ? "bg-white" : "bg-white/40"}`} />
               <span className="truncate">
                 <b className="hidden sm:inline">Dasbor supervisor · </b>
-                {currentTime ? <span>Diperbarui {currentTime} WIB</span> : <span>Memuat...</span>}
+                {lastUpdated ? <span>Terakhir diperbarui {lastUpdated} WIB{error ? " · Pembaruan gagal" : !autoRefresh ? " · Pembaruan otomatis mati" : ""}</span> : <span>Belum ada pembaruan berhasil</span>}
                 {data?.headline && <span className="hidden text-white/80 lg:inline"> · {data.headline}</span>}
               </span>
             </span>
@@ -270,7 +245,7 @@ export default function SupervisorDashboardPage() {
 
         {error && (
           <div role="alert" className="rounded-xl border border-safety bg-safety-bg p-4 text-sm font-semibold text-safety-ink">
-            {error}
+            {error} {data && "Data yang ditampilkan mungkin sudah usang. Segarkan untuk mencoba lagi."}
             {!data && (
               <Link href="/staff" className="mt-2 block underline">
                 Buka layar staf
@@ -284,7 +259,7 @@ export default function SupervisorDashboardPage() {
         {data && (
           <>
             {/* 2. KPI CARDS */}
-            <section aria-label="Ringkasan Kinerja Dapur" className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-5">
+            <section aria-label="Ringkasan Kinerja Dapur" className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
               {/* Card 1: Total Batches */}
               <div className="rounded-2xl border border-rule bg-paper p-4">
                 <div className="text-xs font-bold text-ink2">Total batch</div>
@@ -328,12 +303,6 @@ export default function SupervisorDashboardPage() {
                 <p className="mt-1 text-[11px] text-ink2">Menunggu keputusan supervisor</p>
               </div>
 
-              {/* Card 5: Porsi */}
-              <div className="col-span-2 rounded-2xl border border-brand-dark bg-brand-dark p-4 text-white md:col-span-1">
-                <div className="text-xs font-bold text-white/80">Porsi siap kirim</div>
-                <div className="mt-2 text-2xl font-black sm:text-3xl">{data.total_portions_cleared}</div>
-                <p className="mt-1 text-[11px] text-white/75">Dari batch yang ditutup manusia</p>
-              </div>
             </section>
 
             {/* 3. ACTIVE CONCERN SPOTLIGHT */}
@@ -472,63 +441,6 @@ export default function SupervisorDashboardPage() {
               </section>
             )}
 
-            {/* 4. SEKOLAH SASARAN MBG */}
-            <section aria-label="Monitoring Sekolah Sasaran MBG" className="space-y-3">
-              <div>
-                <h2 className="text-lg font-extrabold tracking-tight">Sekolah sasaran distribusi MBG</h2>
-                <p className="text-xs text-ink2">Realisasi alokasi porsi dan status kesiapan pengiriman makanan</p>
-              </div>
-
-              {data.schools.length === 0 ? (
-                <p className="rounded-2xl border border-rule bg-paper p-4 text-sm text-ink2">Belum ada sekolah tujuan yang terdaftar.</p>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {data.schools.map((sch) => {
-                    const isReady = sch.cleared_batches > 0 && sch.in_progress_batches === 0;
-                    const isWorking = sch.in_progress_batches > 0;
-                    const totalClearedPortions = sch.cleared_batches * sch.target_portions;
-
-                    return (
-                      <div key={sch.id} className="flex flex-col justify-between rounded-2xl border border-rule bg-paper p-4">
-                        <div>
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <h3 className="font-extrabold text-ink">{sch.name}</h3>
-                              <p className="mt-0.5 text-xs text-ink2">
-                                Kepsek: <b>{sch.principal_name}</b>
-                              </p>
-                              <p className="text-xs text-ink2">Telepon: {sch.phone_number}</p>
-                            </div>
-                            <Chip
-                              size="small"
-                              label={isReady ? "Siap" : isWorking ? "Packing" : "Menunggu"}
-                              color={isReady ? "success" : isWorking ? "warning" : "default"}
-                              className="text-[10px] font-bold"
-                            />
-                          </div>
-
-                          <div className="mt-4 rounded-xl bg-ground p-3 text-xs">
-                            <div className="flex justify-between font-semibold text-ink">
-                              <span>Alokasi porsi:</span>
-                              <span className="font-bold text-brand-dark">{sch.target_portions} baki siswa</span>
-                            </div>
-                            <div className="mt-1 flex justify-between text-ink2">
-                              <span>Batch ditutup:</span>
-                              <span className="font-bold">{sch.cleared_batches} batch ({totalClearedPortions} porsi)</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 border-t border-rule pt-3">
-                          <span className="block truncate text-[11px] text-ink2">{sch.address}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
             {/* 5. DUA KOLOM: SAFETY FEED & BATCH MANAGEMENT */}
             <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
               {/* KOLOM KIRI: SAFETY FEED */}
@@ -548,7 +460,7 @@ export default function SupervisorDashboardPage() {
                     <p className="py-8 text-center text-xs text-ink2">Belum ada riwayat temuan keamanan pangan.</p>
                   ) : (
                     data.safety_feed.map((item) => (
-                      <div key={item.finding_id} className="flex items-start gap-3 py-3 text-xs">
+                      <Link key={item.finding_id} href={`/staff-review?batch=${encodeURIComponent(item.batch_id)}`} className="flex items-start gap-3 py-3 text-xs hover:bg-ground focus-visible:outline-2 focus-visible:outline-brand">
                         {/* Thumbnail */}
                         <div className="relative size-11 shrink-0 overflow-hidden rounded-lg border border-rule bg-ground">
                           {item.thumbnail_url && (
@@ -573,13 +485,14 @@ export default function SupervisorDashboardPage() {
                             </span>
                           </div>
                           <p className="text-[11px] text-ink2">{batchName(item.batch_id)} · {findingSubtitle(item.subtitle)}</p>
+                          <span className="mt-1 block font-bold text-brand underline">Buka batch</span>
                           {item.resolution_note && (
                             <p className="mt-1 rounded bg-ground p-1.5 text-[11px] font-medium text-ink">
                               {item.resolution_note}
                             </p>
                           )}
                         </div>
-                      </div>
+                      </Link>
                     ))
                   )}
                 </div>
@@ -661,17 +574,6 @@ export default function SupervisorDashboardPage() {
                               </Button>
                             )}
 
-                            {b.status === "closed" && (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                disabled={actionLoading}
-                                onClick={() => handleSendTelegram(b.batch_id)}
-                                className="text-[11px] font-bold"
-                              >
-                                Kirim laporan Telegram
-                              </Button>
-                            )}
 
                             <Button
                               size="small"
@@ -694,13 +596,64 @@ export default function SupervisorDashboardPage() {
               </section>
             </div>
 
-            {/* 6. HOLDING TIME FOOTER */}
+            {/* 4. SEKOLAH SASARAN MBG */}
+            <section aria-label="Monitoring Sekolah Sasaran MBG" className="space-y-3">
+              <div>
+                <h2 className="text-lg font-extrabold tracking-tight">Sekolah sasaran distribusi MBG</h2>
+                <p className="text-xs text-ink2">Target alokasi dan jumlah batch per sekolah; bukan jumlah porsi yang siap dikirim.</p>
+              </div>
+
+              {data.schools.length === 0 ? (
+                <p className="rounded-2xl border border-rule bg-paper p-4 text-sm text-ink2">Belum ada sekolah tujuan yang terdaftar.</p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {data.schools.map((sch) => {
+                    const isReady = sch.cleared_batches > 0 && sch.in_progress_batches === 0;
+                    const isWorking = sch.in_progress_batches > 0;
+
+                    return (
+                      <div key={sch.id} className="flex flex-col justify-between rounded-2xl border border-rule bg-paper p-4">
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h3 className="font-extrabold text-ink">{sch.name}</h3>
+                              <p className="mt-0.5 text-xs text-ink2">
+                                Kepsek: <b>{sch.principal_name}</b>
+                              </p>
+                              <p className="text-xs text-ink2">Telepon: {sch.phone_number}</p>
+                            </div>
+                            <Chip
+                              size="small"
+                              label={isReady ? "Batch ditutup" : isWorking ? "Packing" : "Menunggu"}
+                              color={isReady ? "success" : isWorking ? "warning" : "default"}
+                              className="text-[10px] font-bold"
+                            />
+                          </div>
+
+                          <div className="mt-4 rounded-xl bg-ground p-3 text-xs">
+                            <div className="flex justify-between font-semibold text-ink">
+                              <span>Alokasi porsi:</span>
+                              <span className="font-bold text-brand-dark">{sch.target_portions} baki siswa</span>
+                            </div>
+                            <div className="mt-1 flex justify-between text-ink2">
+                              <span>Batch ditutup:</span>
+                              <span className="font-bold">{sch.cleared_batches} batch</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 border-t border-rule pt-3">
+                          <span className="block truncate text-[11px] text-ink2">{sch.address}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
             <section className="rounded-2xl border border-rule bg-paper p-4">
               <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-                <div>
-                  <span className="font-extrabold text-ink">Batas waktu simpan makanan siap saji:</span>{" "}
-                  <span className="text-ink2">Maksimal 4 jam, dihitung dari foto pertama batch, bukan dari selesai masak (asumsi demo, belum diverifikasi).</span>
-                </div>
                 <div className="font-bold text-ink2">
                   <span>Foto hanya membantu melihat kemungkinan masalah; hasil foto bukan jaminan keamanan pangan.</span>
                 </div>

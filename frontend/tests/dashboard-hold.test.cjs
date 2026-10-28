@@ -88,7 +88,7 @@ test("an older dashboard response cannot overwrite a newer refresh", async () =>
   const old = deferred(), recent = deferred();
   let requests = 0;
   const app = harness(async path => path === "session" ? { user: { role: "supervisor", name: "Synthetic supervisor" } } : ++requests === 1 ? old.promise : recent.promise);
-  const refresh = app.render().find(node => node.props.title === "Segarkan data terbaru").props.onClick;
+  const refresh = app.render().find(node => node.props.title === "Segarkan data").props.onClick;
   const first = refresh(), second = refresh();
   await new Promise(resolve => setImmediate(resolve));
   recent.resolve(dashboard(true));
@@ -131,11 +131,28 @@ test("a refresh started before a hold cannot restore the old unheld state", asyn
     if (path === "session") return { user: { role: "supervisor", name: "Synthetic supervisor" } };
     return ++requests === 1 ? old.promise : dashboard(true);
   });
-  const refresh = app.render().find(node => node.props.title === "Segarkan data terbaru").props.onClick();
+  const refresh = app.render().find(node => node.props.title === "Segarkan data").props.onClick();
   await app.submit();
   old.resolve(dashboard(false));
   await refresh;
   assert.equal(app.state[0].batches[0].status, "on_hold");
+});
+
+test("only a successful refresh updates the timestamp", async () => {
+  let fail = false;
+  const app = harness(async path => {
+    if (path === "session") return { user: { role: "supervisor", name: "Synthetic supervisor" } };
+    if (fail) throw new Error("Synthetic refresh failure");
+    return dashboard();
+  });
+  const refresh = () => app.render().find(node => node.props.title === "Segarkan data").props.onClick();
+  await refresh();
+  const lastUpdated = app.state[10];
+  assert.ok(lastUpdated);
+  fail = true;
+  await refresh();
+  assert.equal(app.state[10], lastUpdated);
+  assert.equal(app.state[2], "Synthetic refresh failure");
 });
 
 test("release confirmation remains beside the list when the held filter removes its row", async () => {
