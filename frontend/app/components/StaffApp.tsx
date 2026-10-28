@@ -57,7 +57,7 @@ export default function StaffApp({ review = false }: { review?: boolean }) {
       <UploadForm done={uploaded} />
     </>}
     {user && review && (!batchId ? <div className="p-4"><p>Pilih batch terlebih dahulu.</p><Button component={Link} href="/staff">Lihat daftar batch</Button></div> : !batch || batch.batch_id !== batchId ? <p role="status" className="p-4">Memuat hasil tersimpan...</p> : <>
-      <BatchResult key={`${batch.batch_id}:${batch.runs.length}`} batch={batch} refresh={load} isSupervisor={user.role === "supervisor"} />
+      <BatchResult key={`${batch.batch_id}:${batch.runs.length}`} batch={batch} refresh={load} />
       {batch.status !== "closed" && <UploadForm key={batchId} batchId={batchId} menu={batch.menu_name} table={batch.table_name} retake done={uploaded} />}
     </>)}
   </StaffShell>;

@@ -51,7 +51,6 @@ function PhotoPicker({ photo, previewUrl, disabled, picked }: { photo: File | nu
   </div>;
 }
 
-const DEMO_MENU = "Nasi putih, Ayam kecap, Tumis buncis, Tahu goreng, Anggur";
 
 export default function UploadForm({ batchId, menu, table, retake = false, done }: { batchId?: string; menu?: string | null; table?: string; retake?: boolean; done: (id: string) => void }) {
   const [busy, setBusy] = useState(false);
@@ -102,14 +101,15 @@ export default function UploadForm({ batchId, menu, table, retake = false, done 
     document.getElementById("dapur-inspection-status")?.scrollIntoView({ behavior: "smooth", block: "center" });
     window.dispatchEvent(new Event("dapur:pending-inspection"));
   }
-  return <section className="border-t border-rule px-4 py-5">
+  return <section id={retake ? "retake-form" : undefined} className="scroll-mt-4 border-t border-rule px-4 py-5">
     <h2 className="text-lg font-extrabold">{retake ? "Foto ulang setelah tindakan" : batchId ? "Tambahkan foto ke batch ini" : "Mulai batch baru"}</h2>
     <form onSubmit={submit} className="mt-3 flex flex-col gap-4" aria-busy={busy}>
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
         {!batchId && !retake && (
           <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Sekolah Sasaran Distribusi MBG (Pelanggan)
-            <select name="school_id" defaultValue="sch_01" className={inputClass}>
+            Sekolah sasaran (data demo)
+            <select name="school_id" defaultValue="" required className={inputClass}>
+              <option value="" disabled>Pilih sekolah</option>
               <option value="sch_01">SDN 01 Merdeka Bandung (450 baki)</option>
               <option value="sch_02">SMPN 3 Cibeureum (520 baki)</option>
               <option value="sch_03">SDN 05 Sukajadi (380 baki)</option>
@@ -118,12 +118,12 @@ export default function UploadForm({ batchId, menu, table, retake = false, done 
         )}
         <label className="flex flex-col gap-1.5 text-sm font-medium">
           Nama meja atau lini packing
-          <input name="table_name" required maxLength={100} defaultValue={retake ? table : "Meja 1"} placeholder="Contoh: Meja 1" className={inputClass} />
+          <input name="table_name" required maxLength={100} defaultValue={batchId ? table : ""} placeholder="Contoh: Meja 1" className={inputClass} />
         </label>
-        <MenuTags initial={splitMenu(batchId ? menu ?? "" : DEMO_MENU)} />
+        <MenuTags initial={splitMenu(batchId ? menu ?? "" : "")} />
         <PhotoPicker photo={photo} previewUrl={previewUrl} disabled={busy} picked={pickPhoto} />
       </fieldset>
-      <p className="text-xs text-ink2">Foto dikonversi ke JPEG, sisi panjang hingga 1600 piksel. Gunakan foto yang jelas sebelum tutup dipasang.</p>
+      <p className="text-xs text-ink2">Gunakan foto yang jelas sebelum tutup dipasang.</p>
       {error && <ErrorMessage>{error}</ErrorMessage>}
       {resume && <p role="alert" className="rounded-xl border border-rule bg-paper p-3 text-sm">{resume}
         <button type="button" onClick={showInspectionStatus} className="mt-2 block font-bold text-brand underline">Lihat status inspeksi</button>
