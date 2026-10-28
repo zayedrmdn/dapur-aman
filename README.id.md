@@ -75,18 +75,18 @@ Setiap tindakan yang mengubah temuan atau batch melewati endpoint tindakan manus
 | Batch baru dari foto | Staf mengisi nama meja atau jalur, komponen menu, dan sekolah tujuan, lalu mengambil atau memilih foto. |
 | Kamera atau galeri | "Ambil Foto" membuka kamera belakang; "Pilih dari Galeri" memilih foto tersimpan jika kamera tidak tersedia atau izinnya ditolak. |
 | Persiapan foto | Browser menerima JPEG, PNG, atau WebP hingga 20 MB dan mengubah ukurannya menjadi sisi terpanjang 1600 px dalam format JPEG. Server menolak file di atas 4 MB dan menyimpan setiap foto sebagai JPEG. |
-| Tag menu | Komponen menu diketik sebagai tag (Enter atau koma menambah satu tag; duplikat tanpa membedakan huruf besar-kecil dilewati). Vision memeriksa foto terhadap tag ini. Batch baru dimulai dengan menu demo dan meja "Meja 1"; foto ulang terisi otomatis dengan menu dan nama meja yang tersimpan di batch. |
-| Penanda progres AI | Menampilkan tiga tahap (Orkestrator sejak 0 detik, Vision sejak 2 detik, Kepatuhan sejak 9 detik) selama inspeksi berjalan. Tahapan ini berbasis waktu, bukan status langsung dari server. |
+| Tag menu | Staf mengisi komponen menu untuk batch baru; foto ulang memakai menu dan meja yang tersimpan. |
+| Status inspeksi | Menampilkan pesan menunggu dan meminta staf tidak mengirim ulang foto. |
 | Foto bertanda | Kotak bernomor di atas setiap temuan yang lokasinya diketahui. Mengetuk nomor akan menuju temuan tersebut. Temuan tanpa kotak hanya muncul di daftar. |
 | Daftar temuan | Tingkat (keamanan atau kualitas), penjelasan, rujukan aturan, kekurangan bukti, dan tindakan yang disarankan untuk setiap temuan. |
 | Keputusan atas temuan | "Sudah diperbaiki" atau "Abaikan dengan alasan". Pilihan diperbaiki hanya tersedia setelah ada foto ulang yang lebih baru dan sudah selesai diperiksa. |
 | Foto ulang | "Periksa foto ulang" menambahkan foto baru ke batch yang sama. Temuan sebelumnya tetap menyimpan keputusan manusia; AI tidak pernah menghapusnya. |
-| Penghitung waktu penyimpanan | Waktu sejak foto pertama batch terhadap batas demo 4 jam. Berwarna kuning pada 30 menit terakhir dan merah setelah batas terlewati. |
+| Penghitung waktu penyimpanan | Aplikasi tidak menampilkan batas waktu penyimpanan. |
 | Dasbor supervisor | Ringkasan angka, temuan keamanan terbuka terbaru, daftar batch yang dapat difilter, dan status per sekolah. Diperbarui setiap 20 detik (dapat dimatikan). Khusus supervisor. |
 | Tahan dan cabut penahanan | "Tahan batch" pada kartu temuan dan "Lepaskan tahanan" pada kartu atau daftar batch, masing-masing dengan alasan. Tombol mengikuti status batch yang tersimpan, dan hasilnya tampil di dekat formulir. Khusus supervisor. |
 | Tutup batch | "Tutup batch" muncul jika batch tidak sedang ditahan, tidak ada temuan terbuka, dan inspeksi terakhir selesai tanpa meminta foto ulang. |
-| Laporan ke sekolah via Telegram | "Laporan Pemeriksaan Batch" untuk sekolah. Dikirim saat supervisor menutup batch, atau atas permintaan supervisor untuk batch yang sudah ditutup. Laporan dikirim ke chat milik sekolah jika tersimpan; sekolah demo tidak memilikinya, sehingga laporan dikirim ke `TELEGRAM_SCHOOL_CHAT_ID` (atau chat supervisor). |
-| Peringatan supervisor via Telegram | Peringatan saat foto pertama memiliki temuan apa pun (keamanan atau kualitas), dan pesan saat foto ulang menunjukkan temuan atau tidak ada masalah terlihat. |
+| Laporan ke sekolah via Telegram | Pengiriman dinonaktifkan sampai pemberitahuan lebih lanjut. |
+| Peringatan supervisor via Telegram | Pengiriman dinonaktifkan sampai pemberitahuan lebih lanjut. |
 | Aktivitas AI tersimpan | "Aktivitas AI tersimpan" mencantumkan langkah agen dan tool yang tercatat untuk setiap inspeksi, dengan nama agen dan langkah yang dikenal dalam Bahasa Indonesia. |
 | Riwayat tindakan manusia | "Riwayat tindakan manusia" mencantumkan siapa melakukan apa pada batch, kapan, dan alasannya. |
 
@@ -103,7 +103,7 @@ flowchart LR
   Agents --> Gemini["Gemini di Vertex AI"]
   API --> PG[("Neon Postgres")]
   API --> S3[("Neon object storage<br/>kompatibel S3")]
-  API --> TG["Telegram Bot API"]
+
 ```
 
 - Browser hanya berkomunikasi dengan aplikasi Next.js pada origin yang sama. Route backend-for-frontend (BFF) di `/api/staff/*` menyimpan cookie sesi dan menambahkan shared secret yang hanya ada di server.
@@ -121,7 +121,7 @@ flowchart LR
 | Data | Neon Postgres; Neon object storage melalui boto3 (API S3) |
 | Gambar | Pillow (konversi dan validasi JPEG) |
 | Autentikasi | Hash kata sandi bcrypt; cookie sesi bertanda tangan HMAC |
-| Notifikasi | Telegram Bot API |
+| Notifikasi | Pengiriman Telegram dinonaktifkan sampai pemberitahuan lebih lanjut |
 | Hosting | Vercel (frontend); backend di laptop melalui Cloudflare Quick Tunnel untuk demo |
 | Perkakas | uv (Python), ESLint, pytest |
 
@@ -131,8 +131,8 @@ flowchart LR
 
 1. Masuk dengan akun staf. Aplikasi membuka daftar batch di `/staff`.
 2. Mulai batch: pilih sekolah, ketik nama meja atau jalur, periksa tag menu, lalu ambil atau pilih foto.
-3. Kirim dan tunggu hingga penanda progres selesai. Jangan mengirim ulang selama proses berjalan.
-4. Layar peninjauan terbuka. Baca hasil inspeksi dan penghitung waktu penyimpanan. Hasil "tidak ada masalah terlihat" tetap meminta pemeriksaan manusia.
+3. Kirim dan tunggu hasil. Jangan mengirim ulang selama proses berjalan.
+4. Layar peninjauan terbuka. Baca hasil inspeksi. Hasil "tidak ada masalah terlihat" tetap meminta pemeriksaan manusia.
 5. Periksa foto bertanda dan setiap temuan. Untuk temuan yang perlu diperbaiki, perbaiki baki, lalu unggah foto baru melalui "Periksa foto ulang".
 6. Setelah foto ulang selesai diperiksa, tandai temuan "Sudah diperbaiki" dengan alasan. Sebelum itu, pilihan tersebut bertuliskan "Sudah diperbaiki (perlu foto ulang)" dan tidak dapat dipilih. Temuan juga dapat diabaikan dengan alasan kapan saja.
 7. Jika batch tidak sedang ditahan, tidak ada temuan terbuka, dan inspeksi terakhir selesai tanpa meminta foto ulang, periksa baki secara langsung lalu tekan "Tutup batch".
@@ -144,7 +144,7 @@ flowchart LR
 3. Tahan batch dengan "Tahan batch" pada kartu temuan dan alasan (minimal 3 karakter). Tombol kirim tetap nonaktif sampai alasan cukup panjang.
 4. Filter batch berdasarkan semua, terbuka, ditahan, atau ditutup. Lepaskan penahanan dengan "Lepaskan tahanan" dan alasan. Alasan penahanan tampil di dasbor supervisor dan di daftar batch staf ("Ditahan supervisor — jangan distribusikan").
 5. Buka batch mana pun dengan "Buka detail" untuk meninjaunya seperti staf.
-6. Untuk batch yang sudah ditutup, kirim laporan ke sekolah dengan "Kirim laporan Telegram" (dasbor) atau "Kirim laporan ke Telegram sekolah" (layar peninjauan).
+6. Pengiriman laporan Telegram dinonaktifkan sampai pemberitahuan lebih lanjut.
 
 ### Aturan keputusan
 
@@ -250,7 +250,7 @@ Tabel aturan adalah `rule-table-v1` di `backend/agents/compliance/rules.py`. Ben
 | `portion-01` | kualitas | porsi kurang (tiga varian) | asumsi demo |
 | `presentation-01` | kualitas | penyajian tidak rapi atau berantakan, baki kotor, masalah penyajian | asumsi demo |
 
-**Aturan terverifikasi dan asumsi demo.** Belum ada aturan yang didukung sumber: setiap aturan memiliki `source: None` dan status `demo_assumption` hingga tim menautkan sumbernya. Batas waktu penyimpanan 4 jam juga merupakan asumsi demo, dan diberi label demikian di layar. Aturan hanya menyatakan temuan terlihat mana yang memerlukan pemeriksaan manusia apa; aturan tidak pernah menyatakan makanan aman.
+**Aturan terverifikasi dan asumsi demo.** Belum ada aturan yang didukung sumber: setiap aturan memiliki `source: None` dan status `demo_assumption` hingga tim menautkan sumbernya. Aturan hanya menyatakan temuan terlihat mana yang memerlukan pemeriksaan manusia apa; aturan tidak pernah menyatakan makanan aman.
 
 ## Frontend
 
@@ -279,8 +279,8 @@ Tidak ada middleware route: halaman memuat data melalui BFF, mengarahkan penggun
 | `app/components/BatchResult.tsx` | Hasil inspeksi, temuan, keputusan, penutupan, laporan, aktivitas, dan riwayat tindakan |
 | `app/components/MarkedPhoto.tsx` | Foto dengan kotak temuan bernomor |
 | `app/components/MenuTags.tsx` | Input tag komponen menu |
-| `app/components/HoldingTimer.tsx` | Waktu berjalan terhadap batas demo 4 jam |
-| `app/components/InspectionSteps.tsx` | Penanda progres tiga tahap selama inspeksi |
+| `app/components/HoldingTimer.tsx` | Penghitung demo lama yang tidak dipakai dan tidak ditampilkan |
+| `app/components/InspectionSteps.tsx` | Pesan menunggu selama inspeksi |
 | `app/components/InspectionStatus.tsx` | Status inspeksi tersimpan setelah aplikasi ditinggalkan |
 | `app/components/PitchPhoto.tsx` | Foto halaman depan dengan penanda temuan |
 | `app/components/icons.tsx` | Ikon SVG inline |
@@ -348,8 +348,8 @@ Semua route ada di `backend/app/main.py`. "Secret" berarti header `X-Shared-Secr
 | GET | `/api/runs/{run_id}/events` | Event aktivitas tersimpan untuk satu inspeksi | Ya | Ya | Semua |
 | GET | `/api/schools` | Sekolah penerima | Ya | Ya | Semua |
 | POST | `/api/actions` | Mencatat `fixed`, `dismissed`, `on_hold`, `lift_hold`, atau `close` | Ya | Ya | Semua; `on_hold` dan `lift_hold` khusus supervisor |
-| POST | `/api/notifications/test-alert` | Mengirim contoh peringatan ke chat Telegram supervisor (query opsional `table_name`, `batch_id`) | Ya | Ya | Supervisor |
-| POST | `/api/notifications/dispatch-report/{batch_id}` | Mengirim laporan ke sekolah untuk batch yang sudah ditutup (query opsional `school_id`) | Ya | Ya | Supervisor |
+| POST | `/api/notifications/test-alert` | Endpoint uji; pengiriman Telegram dinonaktifkan | Ya | Ya | Supervisor |
+| POST | `/api/notifications/dispatch-report/{batch_id}` | Endpoint laporan; pengiriman Telegram dinonaktifkan | Ya | Ya | Supervisor |
 
 Totalnya 14 path yang dilayani 11 handler. FastAPI juga menyediakan `/docs`, `/redoc`, dan `/openapi.json` (hanya skema, tanpa data).
 
@@ -420,7 +420,7 @@ Tipe mengikuti yang dibuat SQLAlchemy di PostgreSQL. `TIMESTAMP` tanpa zona wakt
 | `status` | VARCHAR(50) | Tidak | app `in_review` | `in_review`, `on_hold`, `closed` |
 | `hold_reason` | TEXT | Ya | | Diisi oleh `on_hold`, dikosongkan oleh `lift_hold` |
 | `hold_by` | VARCHAR(50) | Ya | | ID pengguna; tanpa foreign key |
-| `created_at` | TIMESTAMP | Ya | app, db `now()` | Awal penghitung demo 4 jam |
+| `created_at` | TIMESTAMP | Ya | app, db `now()` | Waktu pembuatan batch |
 | `updated_at` | TIMESTAMP | Ya | app; diperbarui aplikasi saat berubah | |
 
 </details>
@@ -620,7 +620,7 @@ Hanya nama variabel. Nilai sebenarnya ada di `backend/.env`, `frontend/.env.loca
 | `BACKEND_SHARED_SECRET` | Harus sama dengan nilai frontend; jika kosong, route yang dijaga mengembalikan 503 | Ya |
 | `CORS_ALLOWED_ORIGINS` | Origin browser dipisahkan koma; tidak diperlukan untuk alur BFF | Tidak |
 | `SEED_STAFF_PASSWORD`, `SEED_SUPERVISOR_PASSWORD` | Kata sandi akun demo hasil seeding | Untuk seeding akun |
-| `TELEGRAM_BOT_TOKEN` | Token bot; tanpa ini, pesan hanya ditulis ke log | Tidak |
+| `TELEGRAM_BOT_TOKEN` | Konfigurasi tersimpan; pengiriman dinonaktifkan | Tidak |
 | `TELEGRAM_CHAT_ID` | Chat cadangan untuk peringatan supervisor dan laporan ke sekolah | Tidak |
 | `TELEGRAM_SUPERVISOR_CHAT_ID`, `TELEGRAM_SCHOOL_CHAT_ID` | Chat khusus; memakai `TELEGRAM_CHAT_ID` jika kosong | Tidak |
 
@@ -718,17 +718,17 @@ Untuk alur browser lengkap secara lokal tanpa layanan cloud, `backend/tests/loca
 ## Keterbatasan yang diketahui
 
 - **Bukti hanya dari foto.** Agen tidak dapat memeriksa suhu, bau, tekstur, atau lama penyimpanan, dan foto tidak dapat menunjukkan keamanan mikrobiologis. Output bisa salah; temperature 0 mengurangi variasi tetapi tidak membuat output benar.
-- **Aturan masih asumsi demo.** Belum ada aturan yang ditautkan ke regulasi, dan batas waktu penyimpanan 4 jam belum diverifikasi.
-- **Waktu penyimpanan dihitung dari foto pertama.** Penghitung waktu, footer dasbor, dan batas waktu di laporan ke sekolah menghitung batas demo 4 jam dari foto pertama batch, bukan dari selesai memasak, sehingga waktu sebenarnya sejak selesai memasak bisa lebih lama.
-- **Semua pengguna yang sudah masuk dapat menutup batch.** Laporan ke sekolah hanya dikirim otomatis saat supervisor yang menutup.
+- **Aturan masih asumsi demo.** Belum ada aturan yang ditautkan ke regulasi.
+- **Waktu penyimpanan belum diverifikasi.** Penghitung yang tidak dipakai dan pembentuk laporan masih memuat asumsi demo empat jam; keduanya tidak ditampilkan atau dikirim.
+- **Semua pengguna yang sudah masuk dapat menutup batch.** Penutupan oleh supervisor memicu persiapan laporan, tetapi pengiriman Telegram dinonaktifkan.
 - **Penahanan hanya mencegah penutupan.** Penahanan tidak mencegah foto baru atau keputusan atas temuan.
 - **Beberapa perubahan status tidak diblokir backend.** UI tidak menawarkannya, tetapi API menerima:
   - penahanan pada batch yang sudah ditutup, atau `lift_hold` pada batch yang tidak ditahan;
-  - menutup batch yang sudah ditutup (penutupan ulang oleh supervisor mengirim laporan ke sekolah lagi);
+  - menutup batch yang sudah ditutup (penutupan ulang oleh supervisor kembali memicu persiapan laporan; pengiriman dinonaktifkan);
   - `fixed` atau `dismissed` pada temuan yang sudah diselesaikan, dan foto ulang pada batch yang sudah ditutup.
 
   Syarat penutupan "inspeksi terakhir tidak meminta foto ulang" hanya diperiksa di UI. Pemeriksaan status tidak memakai row lock, sehingga dua tindakan bersamaan dapat saling mendahului.
-- **Pengiriman Telegram tidak dikonfirmasi.** Peringatan dikirim di latar belakang dan tidak diulang; kegagalan hanya dicatat di log. Endpoint laporan tetap mengembalikan sukses meskipun Telegram belum dikonfigurasi atau menolak pesan, dan UI tetap menyatakan laporan terkirim.
+- **Pengiriman Telegram dinonaktifkan.** Endpoint laporan masih dapat mengembalikan status sukses secara keseluruhan; periksa `telegram_result.status`, yang bernilai `disabled`.
 - **Timeout model.** Setiap panggilan model dibatasi 45 detik dan setiap inspeksi 120 detik. Panggilan Vertex AI yang lambat (misalnya `DEADLINE_EXCEEDED` pada tahap Compliance, terjadi pada 22 Oktober 2026) mengakhiri inspeksi sebagai gagal dengan error yang dapat diulang. Tidak ada pengulangan otomatis: staf mengulang dengan foto baru di batch yang sama.
 - **Hanya Vision yang melihat foto.** Agen Orchestrator dan Compliance bekerja dari teks Vision.
 - **Hosting demo.** Backend bergantung pada satu laptop dan Quick Tunnel; setiap restart tunnel memerlukan pembaruan Vercel dan sekitar satu menit downtime untuk redeploy. Cloud Run terhambat IAM.

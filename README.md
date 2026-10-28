@@ -75,18 +75,18 @@ Every action that changes a finding or a batch goes through the human action end
 | New batch from a photo | Staff enter a table or line name, menu components and a target school, then take or choose a photo. |
 | Camera or gallery | "Ambil Foto" opens the rear camera; "Pilih dari Galeri" picks a saved photo when the camera is unavailable or blocked. |
 | Photo preparation | The browser accepts JPEG, PNG or WebP up to 20 MB and resizes to a 1600 px long side as JPEG. The server rejects files over 4 MB and stores every photo as JPEG. |
-| Menu tags | Menu components are typed as tags (Enter or comma adds one; case-insensitive duplicates are skipped). Vision checks the photo against them. A new batch starts with a demo menu and table "Meja 1"; a retake is prefilled with the batch's saved menu and table name. |
-| AI progress stepper | Shows the three stages (Orkestrator from 0 s, Vision from 2 s, Kepatuhan from 9 s) while a run is in progress. The stages are timed indicators, not live server status. |
+| Menu tags | Staff enter menu components for a new batch; a retake uses the saved menu and table. |
+| Inspection status | Shows a waiting message and advises staff not to resend the photo. |
 | Marked photo | Numbered boxes over each finding that has a location. Tapping a number jumps to that finding. Findings without a box appear only in the list. |
 | Findings list | Level (safety or quality), explanation, rule reference, evidence gap and suggested action for each finding. |
 | Finding decisions | "Sudah diperbaiki" (fixed) or "Abaikan dengan alasan" (dismiss with a reason). Fixed is offered only after a newer completed retake. |
 | Retake | "Periksa foto ulang" adds a new photo to the same batch. Earlier findings keep their human decisions; the AI never clears them. |
-| Holding timer | Time since the batch's first photo against a 4-hour demo limit. Turns amber in the last 30 minutes and red after the limit. |
+| Holding timer | No holding-time limit is displayed in the app. |
 | Supervisor dashboard | Headline counts, the latest open safety concern, a filterable batch list and per-school status. Refreshes every 20 seconds (can be turned off). Supervisor only. |
 | Hold and lift hold | "Tahan batch" on the concern card and "Lepaskan tahanan" on the card or batch list, each with a reason. The buttons follow the saved batch status, and the result appears next to the form. Supervisor only. |
 | Close batch | "Tutup batch" appears when the batch is not on hold, no findings are open, and the latest run completed without asking for a retake. |
-| School report via Telegram | "Laporan Pemeriksaan Batch" for the school. Sent when a supervisor closes a batch, or on demand by a supervisor for a closed batch. It goes to the school's own chat if one is stored; the demo schools have none, so it goes to `TELEGRAM_SCHOOL_CHAT_ID` (or the supervisor chat). |
-| Supervisor alerts via Telegram | An alert when a first photo has any finding (safety or quality), and a message when a retake shows findings or no visible concern. |
+| School report via Telegram | Delivery is disabled until further notice. |
+| Supervisor alerts via Telegram | Delivery is disabled until further notice. |
 | Saved AI activity | "Aktivitas AI tersimpan" lists the agent and tool steps recorded for each run, with agent names and known steps in Bahasa Indonesia. |
 | Human action history | "Riwayat tindakan manusia" lists who did what to a batch, when, and why. |
 
@@ -103,7 +103,7 @@ flowchart LR
   Agents --> Gemini["Gemini on Vertex AI"]
   API --> PG[("Neon Postgres")]
   API --> S3[("Neon object storage<br/>S3-compatible")]
-  API --> TG["Telegram Bot API"]
+
 ```
 
 - The browser talks only to the Next.js app on the same origin. A backend-for-frontend (BFF) route at `/api/staff/*` holds the session cookie and adds the server-only shared secret.
@@ -121,7 +121,7 @@ flowchart LR
 | Data | Neon Postgres; Neon object storage through boto3 (S3 API) |
 | Images | Pillow (JPEG conversion and validation) |
 | Auth | bcrypt password hashes; HMAC-signed session cookie |
-| Notifications | Telegram Bot API |
+| Notifications | Telegram delivery disabled until further notice |
 | Hosting | Vercel (frontend); backend on a laptop behind a Cloudflare Quick Tunnel for the demo |
 | Tooling | uv (Python), ESLint, pytest |
 
@@ -131,8 +131,8 @@ flowchart LR
 
 1. Sign in with a staff account. The app opens the batch list at `/staff`.
 2. Start a batch: choose a school, type a table or line name, check the menu tags, take or choose a photo.
-3. Submit and wait for the stepper to finish. Do not submit again while it runs.
-4. The review screen opens. Read the outcome and the holding timer. "No visible concern" still asks for a human check.
+3. Submit and wait for the result. Do not submit again while it runs.
+4. The review screen opens. Read the outcome. "No visible concern" still asks for a human check.
 5. Check the marked photo and each finding. For a concern that needs a fix, correct the tray, then upload a new photo with "Periksa foto ulang".
 6. After the retake has completed, mark the finding "Sudah diperbaiki" with a reason. Before that, the option reads "Sudah diperbaiki (perlu foto ulang)" and is disabled. A finding can instead be dismissed with a reason at any time.
 7. When the batch is not on hold, no findings are open and the latest run completed without asking for a retake, check the trays by eye and press "Tutup batch".
@@ -144,7 +144,7 @@ flowchart LR
 3. Hold a batch with "Tahan batch" on the concern card and a reason (at least 3 characters). The submit button stays disabled until the reason is long enough.
 4. Filter batches by all, open, held or closed. Release a hold with "Lepaskan tahanan" and a reason. Held batches show the hold reason in the supervisor dashboard and in the staff batch list ("Ditahan supervisor — jangan distribusikan").
 5. Open any batch with "Buka detail" to review it like staff do.
-6. For a closed batch, send the school report with "Kirim laporan Telegram" (dashboard) or "Kirim laporan ke Telegram sekolah" (review screen).
+6. Telegram report delivery is disabled until further notice.
 
 ### Decision rules
 
@@ -250,7 +250,7 @@ The rule table is `rule-table-v1` in `backend/agents/compliance/rules.py`. A ref
 | `portion-01` | quality | portion shortage (three variants) | demo assumption |
 | `presentation-01` | quality | irregular or messy presentation, dirty tray, presentation issue | demo assumption |
 
-**Verified rules versus demo assumptions.** No rule is source-backed yet: every rule has `source: None` and status `demo_assumption` until the team links a source. The 4-hour holding limit is also a demo assumption, labelled as such on screen. A rule only says which visible concern needs which human check; it never certifies food as safe.
+**Verified rules versus demo assumptions.** No rule is source-backed yet: every rule has `source: None` and status `demo_assumption` until the team links a source. A rule only says which visible concern needs which human check; it never certifies food as safe.
 
 ## Frontend
 
@@ -279,8 +279,8 @@ There is no route middleware: pages load data through the BFF, send the user to 
 | `app/components/BatchResult.tsx` | Run result, findings, decisions, close, report, activity and action history |
 | `app/components/MarkedPhoto.tsx` | Photo with numbered finding boxes |
 | `app/components/MenuTags.tsx` | Menu component tag input |
-| `app/components/HoldingTimer.tsx` | Elapsed time against the 4-hour demo limit |
-| `app/components/InspectionSteps.tsx` | Three-stage progress indicator during a run |
+| `app/components/HoldingTimer.tsx` | Unused legacy demo timer; not displayed in the app |
+| `app/components/InspectionSteps.tsx` | Waiting message during a run |
 | `app/components/InspectionStatus.tsx` | Saved inspection status after the app is switched |
 | `app/components/PitchPhoto.tsx` | Landing page photo with the marked spots |
 | `app/components/icons.tsx` | Inline SVG icons |
@@ -348,8 +348,8 @@ All routes are in `backend/app/main.py`. "Secret" means the `X-Shared-Secret` he
 | GET | `/api/runs/{run_id}/events` | Saved activity events for one run | Yes | Yes | Any |
 | GET | `/api/schools` | School recipients | Yes | Yes | Any |
 | POST | `/api/actions` | Record `fixed`, `dismissed`, `on_hold`, `lift_hold` or `close` | Yes | Yes | Any; `on_hold` and `lift_hold` supervisor only |
-| POST | `/api/notifications/test-alert` | Send a sample alert to the supervisor Telegram chat (optional `table_name`, `batch_id` query) | Yes | Yes | Supervisor |
-| POST | `/api/notifications/dispatch-report/{batch_id}` | Send the school report for a closed batch (optional `school_id` query) | Yes | Yes | Supervisor |
+| POST | `/api/notifications/test-alert` | Test endpoint; Telegram delivery is disabled | Yes | Yes | Supervisor |
+| POST | `/api/notifications/dispatch-report/{batch_id}` | Report endpoint; Telegram delivery is disabled | Yes | Yes | Supervisor |
 
 That is 14 paths served by 11 handlers. FastAPI also serves `/docs`, `/redoc` and `/openapi.json` (schema only, no data).
 
@@ -420,7 +420,7 @@ Types are as SQLAlchemy creates them on PostgreSQL. `TIMESTAMP` has no time zone
 | `status` | VARCHAR(50) | No | app `in_review` | `in_review`, `on_hold`, `closed` |
 | `hold_reason` | TEXT | Yes | | Set by `on_hold`, cleared by `lift_hold` |
 | `hold_by` | VARCHAR(50) | Yes | | User ID; no foreign key |
-| `created_at` | TIMESTAMP | Yes | app, db `now()` | Start of the 4-hour demo timer |
+| `created_at` | TIMESTAMP | Yes | app, db `now()` | Batch creation time |
 | `updated_at` | TIMESTAMP | Yes | app; updated by the app on change | |
 
 </details>
@@ -620,7 +620,7 @@ Names only. Real values live in `backend/.env`, `frontend/.env.local` and the Ve
 | `BACKEND_SHARED_SECRET` | Must equal the frontend value; empty makes guarded routes return 503 | Yes |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated browser origins; not needed for the BFF flow | No |
 | `SEED_STAFF_PASSWORD`, `SEED_SUPERVISOR_PASSWORD` | Passwords for the seeded demo accounts | To seed accounts |
-| `TELEGRAM_BOT_TOKEN` | Bot token; without it, messages are only logged | No |
+| `TELEGRAM_BOT_TOKEN` | Retained configuration; delivery is disabled | No |
 | `TELEGRAM_CHAT_ID` | Fallback chat for supervisor alerts and school reports | No |
 | `TELEGRAM_SUPERVISOR_CHAT_ID`, `TELEGRAM_SCHOOL_CHAT_ID` | Specific chats; fall back to `TELEGRAM_CHAT_ID` | No |
 
@@ -718,17 +718,17 @@ For a full local browser journey without cloud services, `backend/tests/local_mv
 ## Known limitations
 
 - **Photo-only evidence.** The agents cannot check temperature, smell, texture or storage time, and a photo cannot show microbiological safety. Outputs can be wrong; temperature 0 reduces variation but does not make the output correct.
-- **Rules are demo assumptions.** No rule is linked to a regulation yet, and the 4-hour holding limit is unverified.
-- **Holding time starts at the first photo.** The timer, the dashboard footer and the school report's deadline all count the 4-hour demo limit from the batch's first photo, not from the end of cooking, so the real time since cooking can be longer.
-- **Any signed-in user can close a batch.** The school report is sent automatically only when a supervisor closes.
+- **Rules are demo assumptions.** No rule is linked to a regulation yet.
+- **Holding time is not verified.** The unused timer and report formatter still contain a four-hour demo assumption; neither is displayed or delivered.
+- **Any signed-in user can close a batch.** A supervisor close triggers report preparation, but Telegram delivery is disabled.
 - **A hold blocks closing only.** It does not block new photos or finding decisions.
 - **Some status changes are not blocked by the backend.** The UI does not offer them, but the API accepts:
   - a hold on a closed batch, or `lift_hold` on a batch that is not held;
-  - closing an already closed batch (a supervisor re-close sends the school report again);
+  - closing an already closed batch (a supervisor re-close triggers report preparation again; delivery is disabled);
   - `fixed` or `dismissed` on an already resolved finding, and a retake on a closed batch.
 
   The "latest run did not ask for a retake" condition for closing is checked in the UI only. Status checks have no row locks, so two simultaneous actions can race.
-- **Telegram delivery is not confirmed.** Alerts are sent in the background and not retried; failures are only logged. The report endpoint returns success even when Telegram was not configured or refused the message, and the UI then still says it was sent.
+- **Telegram delivery is disabled.** The report endpoint can still return an overall success response; inspect `telegram_result.status`, which is `disabled`.
 - **Model timeouts.** Each model call has 45 seconds and a run 120 seconds. A slow Vertex AI call (for example `DEADLINE_EXCEEDED` on the Compliance step, seen on 22 October 2026) ends the run as failed with a retryable error. Nothing retries automatically: staff retry with a new photo in the same batch.
 - **Only Vision sees the photo.** The Orchestrator and Compliance agents work from Vision's text.
 - **Demo hosting.** The backend depends on one laptop and a Quick Tunnel; each tunnel restart needs a Vercel update and about a minute of redeploy downtime. Cloud Run is blocked on IAM.
