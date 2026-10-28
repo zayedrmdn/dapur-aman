@@ -31,46 +31,12 @@ async def send_telegram_raw(
     chat_id: str,
     photo_url: str | None = None,
 ) -> dict:
-    """Send message to Telegram via Bot API, or log if token is unconfigured."""
-    if not TELEGRAM_BOT_TOKEN or not chat_id:
-        logger.info(
-            "[Telegram Service - SIMULASI / TOKEN BELUM DIISI]\nTarget Chat ID: %s\nIsi Pesan:\n%s",
-            chat_id or "(none)",
-            text,
-        )
-        return {
-            "status": "simulated",
-            "chat_id": chat_id,
-            "message": "TELEGRAM_BOT_TOKEN atau CHAT_ID belum diatur di .env. Pesan dicatat di log backend.",
-        }
-
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": False,
+    """Keep Telegram delivery disabled until further notice."""
+    logger.info("Telegram delivery is disabled")
+    return {
+        "status": "disabled",
+        "message": "Pengiriman Telegram dinonaktifkan sampai pemberitahuan lebih lanjut.",
     }
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(url, json=payload)
-            response_json = response.json()
-            if response.status_code == 200 and response_json.get("ok"):
-                logger.info("[Telegram Service] Pesan terkirim ke chat_id=%s", chat_id)
-                return {"status": "success", "result": response_json.get("result")}
-            else:
-                logger.warning(
-                    "[Telegram Service] Telegram API error: %s",
-                    response_json.get("description", response.text),
-                )
-                return {
-                    "status": "error",
-                    "error": response_json.get("description", response.text),
-                }
-    except Exception as e:
-        logger.error("[Telegram Service] Gagal mengirim HTTP request ke Telegram: %s", str(e))
-        return {"status": "error", "error": str(e)}
 
 
 async def send_supervisor_safety_alert(

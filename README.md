@@ -1,5 +1,8 @@
 # Dapur Aman by Nexara
 
+> **Telegram delivery is disabled until further notice.** Alerts and school reports are not sent, even when credentials are configured. Existing deployments require an update to apply this change.
+
+
 [Bahasa Indonesia](README.id.md)
 
 [![Dapur Aman landing page: a meal-tray photo with AI-marked concerns](docs/media/landing-preview.webp)](https://dapur-aman.vercel.app)

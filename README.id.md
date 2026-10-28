@@ -1,5 +1,8 @@
 # Dapur Aman by Nexara
 
+> **Pengiriman Telegram dinonaktifkan sampai pemberitahuan lebih lanjut.** Peringatan dan laporan sekolah tidak dikirim meskipun kredensial tersedia. Deployment yang berjalan perlu diperbarui agar perubahan berlaku.
+
+
 [English](README.md)
 
 [![Halaman depan Dapur Aman: foto baki makanan dengan temuan yang ditandai AI](docs/media/landing-preview.webp)](https://dapur-aman.vercel.app)

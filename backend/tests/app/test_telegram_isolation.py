@@ -4,6 +4,18 @@ import os
 import app.config
 import app.notifications
 
+real_send_telegram_raw = app.notifications.send_telegram_raw
+
+
+def test_delivery_is_disabled_with_credentials(monkeypatch):
+    def reject_http(*args, **kwargs):
+        raise AssertionError("Telegram must not be contacted")
+
+    monkeypatch.setattr(app.notifications.httpx, "AsyncClient", reject_http)
+    monkeypatch.setattr(app.notifications, "TELEGRAM_BOT_TOKEN", "synthetic-token")
+    result = asyncio.run(real_send_telegram_raw("test", "synthetic-chat"))
+    assert result["status"] == "disabled"
+
 
 def test_telegram_credentials_are_empty_before_tests_run():
     for name in (
