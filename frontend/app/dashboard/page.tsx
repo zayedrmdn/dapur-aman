@@ -29,7 +29,7 @@ export default function SupervisorDashboardPage() {
   const [filterTab, setFilterTab] = useState<"all" | "open" | "on_hold" | "closed">("all");
   const [actionNotice, setActionNotice] = useState<string>("");
   const [actionLoading, setActionLoading] = useState<boolean>(false);
-  const [activePhotoErr, setActivePhotoErr] = useState<boolean>(false);
+  const [failedPhotoUrl, setFailedPhotoUrl] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const [holdTarget, setHoldTarget] = useState<{ batchId: string; isHold: boolean; placement: "active" | "list" } | null>(null);
@@ -193,7 +193,7 @@ export default function SupervisorDashboardPage() {
               <h1 className="truncate text-base leading-tight font-black tracking-tight sm:text-lg">
                 Dapur Aman <span className="hidden text-xs font-normal opacity-85 sm:inline">by Nexara</span>
               </h1>
-              <span className="line-clamp-2 text-xs leading-snug text-white/80">{data?.kitchen_name || "Memuat data dapur..."}</span>
+              <span className="line-clamp-2 text-xs leading-snug text-white">{data?.kitchen_name || "Memuat data dapur..."}</span>
             </span>
           </Link>
           {userName && (
@@ -247,9 +247,10 @@ export default function SupervisorDashboardPage() {
           <div role="alert" className="rounded-xl border border-safety bg-safety-bg p-4 text-sm font-semibold text-safety-ink">
             {error} {data && "Data yang ditampilkan mungkin sudah usang. Segarkan untuk mencoba lagi."}
             {!data && (
-              <Link href="/staff" className="mt-2 block underline">
-                Buka layar staf
-              </Link>
+              <div className="mt-2 flex flex-wrap gap-4">
+                <button type="button" onClick={handleLogout} className="min-h-11 underline">Masuk dengan akun lain</button>
+                <Link href="/staff" className="inline-flex min-h-11 items-center underline">Buka layar staf</Link>
+              </div>
             )}
           </div>
         )}
@@ -281,14 +282,15 @@ export default function SupervisorDashboardPage() {
                 <div className="grid gap-6 p-5 md:grid-cols-[1.1fr_1fr]">
                   {/* Left: Photo with bounding box */}
                   <div className="relative overflow-hidden rounded-xl border border-rule bg-black">
-                    {data.active_concern.photo_url && !activePhotoErr ? (
+                    {data.active_concern.photo_url && data.active_concern.photo_url !== failedPhotoUrl ? (
                       <div className="relative mx-auto w-fit max-w-full">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={data.active_concern.photo_url}
                           alt="Foto bukti temuan baki"
                           className="block max-h-[380px] max-w-full w-auto h-auto"
-                          onError={() => setActivePhotoErr(true)}
+                          onError={event => setFailedPhotoUrl(event.currentTarget.getAttribute("src"))}
+                          onLoad={event => { if (event.currentTarget.naturalWidth <= 1 || event.currentTarget.naturalHeight <= 1) setFailedPhotoUrl(event.currentTarget.getAttribute("src")); }}
                         />
                         {data.active_concern.box && (
                           <svg

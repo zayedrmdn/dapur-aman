@@ -40,4 +40,4 @@ export function TechnicalDetails({ items, className = "" }: { items: [string, st
     <dl className="mt-1 grid gap-1">{shown.map(([label, value]) => <div key={label} className="min-w-0"><dt className="inline">{label}: </dt><dd className="inline break-all font-mono">{value}</dd></div>)}</dl>
   </details>;
 }
-export const inputClass = "min-h-12 w-full rounded-xl border border-rule bg-paper px-3 py-2 text-base text-ink";
+export const inputClass = "min-h-12 w-full rounded-xl border border-rule bg-paper px-3 py-2 text-base text-ink placeholder:text-ink2 placeholder:opacity-100";

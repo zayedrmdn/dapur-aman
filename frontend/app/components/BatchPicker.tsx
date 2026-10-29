@@ -31,7 +31,7 @@ export default function BatchPicker({ rows }: { rows: BatchRow[] }) {
       <ul className="mt-1 max-h-80 divide-y divide-rule overflow-y-auto rounded-xl border border-rule">{activeRows.map(item => <li key={item.batch_id}>
         <Link className="block px-3 py-3 hover:bg-mint focus-visible:bg-mint" href={`/staff-review?batch=${encodeURIComponent(item.batch_id)}`}>
           <b className="block">{batchHeading(item.table_name, item.school_name)}</b>
-          <span className="block text-sm text-ink2">{item.batch_status === "on_hold" ? <span className="font-bold text-safety-ink">Ditahan supervisor</span> : backendLabel(item.summary_label)}</span>
+          <span className="block text-sm text-ink2">{item.created_at ? `${time(item.created_at)} · ` : ""}{item.batch_status === "on_hold" ? <span className="font-bold text-safety-ink">Ditahan supervisor</span> : backendLabel(item.summary_label)}</span>
         </Link>
       </li>)}</ul>
     </section>}

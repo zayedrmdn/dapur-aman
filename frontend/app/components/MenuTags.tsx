@@ -43,7 +43,7 @@ export default function MenuTags({ initial }: { initial: string[] }) {
     {tags.length > 0 && <ul aria-label="Komponen menu" className="flex flex-wrap gap-2">
       {tags.map(tag => <li key={tag} className="flex min-h-11 items-center gap-1 rounded-full bg-mint pr-0.5 pl-3 text-sm font-bold text-brand-dark">
         {tag}
-        <button type="button" onClick={() => setTags(current => current.filter(item => item !== tag))} aria-label={`Hapus ${tag}`} className="grid size-10 place-items-center rounded-full hover:bg-brand hover:text-white">
+        <button type="button" onClick={() => setTags(current => current.filter(item => item !== tag))} aria-label={`Hapus ${tag}`} className="grid size-11 place-items-center rounded-full hover:bg-brand hover:text-white">
           <CloseIcon />
         </button>
       </li>)}
