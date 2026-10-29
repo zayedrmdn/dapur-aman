@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import Button from "@mui/material/Button";
 import { api, ApiError } from "@/lib/contracts";
 import { ErrorMessage, inputClass } from "./StaffShell";
@@ -26,6 +26,8 @@ async function preparePhoto(file: File): Promise<File> {
   } finally { bitmap.close(); }
 }
 function PhotoPicker({ photo, previewUrl, disabled, picked }: { photo: File | null; previewUrl: string; disabled: boolean; picked: (file: File | null) => void }) {
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
   function choose(event: ChangeEvent<HTMLInputElement>) {
     picked(event.target.files?.[0] ?? null);
     event.target.value = "";
@@ -33,14 +35,14 @@ function PhotoPicker({ photo, previewUrl, disabled, picked }: { photo: File | nu
   return <div className="flex min-w-0 flex-col gap-1.5">
     <span className="text-sm font-medium">Foto meja atau rak</span>
     <div className="flex flex-col gap-2">
-      <Button component="label" variant="outlined" size="large" disabled={disabled} startIcon={<CameraIcon />}>
+      <Button type="button" variant="outlined" size="large" disabled={disabled} startIcon={<CameraIcon />} onClick={() => cameraInput.current?.click()}>
         Ambil Foto
-        <input type="file" accept="image/*" capture="environment" onChange={choose} className="sr-only" />
       </Button>
-      <Button component="label" variant="outlined" size="large" disabled={disabled} startIcon={<GalleryIcon />}>
+      <input ref={cameraInput} type="file" accept="image/*" capture="environment" onChange={choose} disabled={disabled} hidden />
+      <Button type="button" variant="outlined" size="large" disabled={disabled} startIcon={<GalleryIcon />} onClick={() => galleryInput.current?.click()}>
         Pilih dari Galeri
-        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={choose} className="sr-only" />
       </Button>
+      <input ref={galleryInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={choose} disabled={disabled} hidden />
     </div>
     <p className="text-xs text-ink2">Jika kamera tidak tersedia atau izinnya ditolak, pilih foto dari galeri.</p>
     {photo && <div className="mt-1 flex items-center gap-3 rounded-xl border border-rule p-2">
@@ -98,7 +100,7 @@ export default function UploadForm({ batchId, menu, table, retake = false, done 
     } finally { setBusy(false); }
   }
   function showInspectionStatus() {
-    document.getElementById("dapur-inspection-status")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById("dapur-inspection-status")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "center" });
     window.dispatchEvent(new Event("dapur:pending-inspection"));
   }
   return <section id={retake ? "retake-form" : undefined} className="scroll-mt-4 border-t border-rule px-4 py-5">

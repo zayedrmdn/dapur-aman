@@ -30,6 +30,7 @@ function FindingItem({ finding, index, batchId, canFix, refreshed }: { finding: 
     {finding.resolution_text && <p className="mt-3 rounded-xl border border-brand bg-mint p-3 text-sm">{finding.resolution_text}</p>}
     {saved && <p role="status" className="mt-2 text-sm text-brand">Tindakan tersimpan.</p>}
     {finding.state === "open" && !saved && <form onSubmit={act} className="mt-4 flex flex-col gap-3" aria-busy={busy}>
+      {!canFix && <a href="#retake-form" className="rounded-lg bg-brand px-4 py-3 text-center text-sm font-bold text-white">Perbaiki lalu foto ulang</a>}
       <label className="text-sm font-medium">Tindakan untuk temuan {index + 1}<select name="action" defaultValue={canFix ? "fixed" : "dismissed"} className={`mt-1 ${inputClass}`} disabled={busy}><option value="fixed" disabled={!canFix}>Sudah diperbaiki{canFix ? "" : " (perlu foto ulang)"}</option><option value="dismissed">Abaikan dengan alasan</option></select></label>
       <label className="text-sm font-medium">Alasan atau perbaikan<textarea name="reason" required minLength={3} maxLength={2000} rows={2} className={`mt-1 ${inputClass}`} disabled={busy} /></label>
       <Button type="submit" variant="outlined" disabled={busy}>{busy ? "Menyimpan..." : "Simpan tindakan"}</Button>
@@ -110,7 +111,7 @@ export default function BatchResult({ batch, refresh }: { batch: Batch; refresh:
           <Button variant="contained" disabled={closingBatch} onClick={handleCloseBatch}>
             {closingBatch ? "Memproses..." : "Tutup batch"}
           </Button>
-          {closeError && <span className="text-xs font-bold text-safety-ink">{closeError}</span>}
+          {closeError && <span role="alert" className="text-xs font-bold text-safety-ink">{closeError}</span>}
         </div>
       </div>}
       {openFindings.length > 0 && <div className="rounded-xl border border-safety bg-safety-bg p-3 text-sm text-safety-ink">

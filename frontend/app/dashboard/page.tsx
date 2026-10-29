@@ -199,7 +199,7 @@ export default function SupervisorDashboardPage() {
           {userName && (
             <span className="hidden flex-col text-right text-xs md:flex">
               <span className="font-bold">{userName}</span>
-              <span className="text-[11px] text-white/75">{userRole === "supervisor" ? "Supervisor" : "Petugas dapur"}</span>
+              <span className="text-sm text-white/75">{userRole === "supervisor" ? "Supervisor" : "Petugas dapur"}</span>
             </span>
           )}
           <nav aria-label="Aksi dasbor" className="flex shrink-0 items-center gap-1 text-sm font-bold">
@@ -258,53 +258,6 @@ export default function SupervisorDashboardPage() {
 
         {data && (
           <>
-            {/* 2. KPI CARDS */}
-            <section aria-label="Ringkasan Kinerja Dapur" className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-              {/* Card 1: Total Batches */}
-              <div className="rounded-2xl border border-rule bg-paper p-4">
-                <div className="text-xs font-bold text-ink2">Total batch</div>
-                <div className="mt-2 text-2xl font-black text-ink sm:text-3xl">{data.batches.length}</div>
-                <p className="mt-1 text-[11px] text-ink2">Meja packing tercatat</p>
-              </div>
-
-              {/* Card 2: Batch ditutup */}
-              <div className="rounded-2xl border border-rule bg-paper p-4">
-                <div className="text-xs font-bold text-ink2">Batch ditutup</div>
-                <div className="mt-2 flex items-baseline gap-1.5">
-                  <span className="text-2xl font-black text-brand sm:text-3xl">{closedCount}</span>
-                  <span className="text-[11px] font-semibold text-ink2">dari {data.batches.length} batch</span>
-                </div>
-                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-rule">
-                  <div className="h-full bg-brand transition-all duration-500" style={{ width: `${data.batches.length ? data.clean_pass_rate : 0}%` }}></div>
-                </div>
-              </div>
-
-              {/* Card 3: Temuan Keamanan */}
-              <div className="rounded-2xl border border-rule bg-paper p-4">
-                <div className="text-xs font-bold text-ink2">Temuan keamanan</div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className={`text-2xl font-black sm:text-3xl ${data.stats.open > 0 ? "text-safety" : "text-brand"}`}>
-                    {data.stats.open}
-                  </span>
-                  <span className="text-[11px] font-semibold text-ink2">Aktif</span>
-                </div>
-                <p className="mt-1 text-[11px] text-ink2">
-                  {data.stats.fixed} selesai • {data.stats.dismissed} diabaikan
-                </p>
-              </div>
-
-              {/* Card 4: Baki Ditahan */}
-              <div className="rounded-2xl border border-rule bg-paper p-4">
-                <div className="text-xs font-bold text-ink2">Batch ditahan</div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className={`text-2xl font-black sm:text-3xl ${onHoldCount > 0 ? "text-safety" : "text-ink"}`}>{onHoldCount}</span>
-                  <span className="text-[11px] font-semibold text-ink2">Batch</span>
-                </div>
-                <p className="mt-1 text-[11px] text-ink2">Menunggu keputusan supervisor</p>
-              </div>
-
-            </section>
-
             {/* 3. ACTIVE CONCERN SPOTLIGHT */}
             {data.active_concern ? (
               <section
@@ -329,12 +282,12 @@ export default function SupervisorDashboardPage() {
                   {/* Left: Photo with bounding box */}
                   <div className="relative overflow-hidden rounded-xl border border-rule bg-black">
                     {data.active_concern.photo_url && !activePhotoErr ? (
-                      <div className="relative">
+                      <div className="relative mx-auto w-fit max-w-full">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={data.active_concern.photo_url}
                           alt="Foto bukti temuan baki"
-                          className="max-h-[380px] w-full object-contain"
+                          className="block max-h-[380px] max-w-full w-auto h-auto"
                           onError={() => setActivePhotoErr(true)}
                         />
                         {data.active_concern.box && (
@@ -356,7 +309,7 @@ export default function SupervisorDashboardPage() {
                         )}
                         {data.active_concern.box && (
                           <div
-                            className="absolute rounded bg-safety px-2 py-0.5 text-[11px] font-bold text-white"
+                            className="absolute rounded bg-safety px-2 py-0.5 text-sm font-bold text-white"
                             style={{
                               left: `${Math.min(80, data.active_concern.box.x_min * 100)}%`,
                               top: `${Math.max(5, data.active_concern.box.y_min * 100 - 8)}%`,
@@ -441,6 +394,53 @@ export default function SupervisorDashboardPage() {
               </section>
             )}
 
+            {/* 2. KPI CARDS */}
+            <section aria-label="Ringkasan Kinerja Dapur" className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
+              {/* Card 1: Total Batches */}
+              <div className="rounded-2xl border border-rule bg-paper p-4">
+                <div className="text-xs font-bold text-ink2">Total batch</div>
+                <div className="mt-2 text-2xl font-black text-ink sm:text-3xl">{data.batches.length}</div>
+                <p className="mt-1 text-sm text-ink2">Meja packing tercatat</p>
+              </div>
+
+              {/* Card 2: Batch ditutup */}
+              <div className="rounded-2xl border border-rule bg-paper p-4">
+                <div className="text-xs font-bold text-ink2">Batch ditutup</div>
+                <div className="mt-2 flex items-baseline gap-1.5">
+                  <span className="text-2xl font-black text-brand sm:text-3xl">{closedCount}</span>
+                  <span className="text-sm font-semibold text-ink2">dari {data.batches.length} batch</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-rule">
+                  <div className="h-full bg-brand transition-all duration-500" style={{ width: `${data.batches.length ? data.clean_pass_rate : 0}%` }}></div>
+                </div>
+              </div>
+
+              {/* Card 3: Temuan Keamanan */}
+              <div className="rounded-2xl border border-rule bg-paper p-4">
+                <div className="text-xs font-bold text-ink2">Temuan keamanan</div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className={`text-2xl font-black sm:text-3xl ${data.stats.open > 0 ? "text-safety" : "text-brand"}`}>
+                    {data.stats.open}
+                  </span>
+                  <span className="text-sm font-semibold text-ink2">Aktif</span>
+                </div>
+                <p className="mt-1 text-sm text-ink2">
+                  {data.stats.fixed} selesai • {data.stats.dismissed} diabaikan
+                </p>
+              </div>
+
+              {/* Card 4: Baki Ditahan */}
+              <div className="rounded-2xl border border-rule bg-paper p-4">
+                <div className="text-xs font-bold text-ink2">Batch ditahan</div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className={`text-2xl font-black sm:text-3xl ${onHoldCount > 0 ? "text-safety" : "text-ink"}`}>{onHoldCount}</span>
+                  <span className="text-sm font-semibold text-ink2">Batch</span>
+                </div>
+                <p className="mt-1 text-sm text-ink2">Menunggu keputusan supervisor</p>
+              </div>
+
+            </section>
+
             {/* 5. DUA KOLOM: SAFETY FEED & BATCH MANAGEMENT */}
             <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
               {/* KOLOM KIRI: SAFETY FEED */}
@@ -473,7 +473,7 @@ export default function SupervisorDashboardPage() {
                           <div className="flex items-center justify-between gap-1">
                             <h4 className="truncate font-extrabold text-ink">{concernLabel(item.title)}</h4>
                             <span
-                              className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              className={`rounded px-1.5 py-0.5 text-sm font-bold ${
                                 item.status === "fixed"
                                   ? "bg-mint text-brand-dark"
                                   : item.status === "open"
@@ -484,10 +484,10 @@ export default function SupervisorDashboardPage() {
                               {backendLabel(item.duration_label)}
                             </span>
                           </div>
-                          <p className="text-[11px] text-ink2">{batchName(item.batch_id)} · {findingSubtitle(item.subtitle)}</p>
+                          <p className="text-sm text-ink2">{batchName(item.batch_id)} · {findingSubtitle(item.subtitle)}</p>
                           <span className="mt-1 block font-bold text-brand underline">Buka batch</span>
                           {item.resolution_note && (
-                            <p className="mt-1 rounded bg-ground p-1.5 text-[11px] font-medium text-ink">
+                            <p className="mt-1 rounded bg-ground p-1.5 text-sm font-medium text-ink">
                               {item.resolution_note}
                             </p>
                           )}
@@ -543,7 +543,7 @@ export default function SupervisorDashboardPage() {
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                               <span className="font-bold text-ink">{batchName(b.batch_id)}</span>
                               <span
-                                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                className={`shrink-0 rounded px-1.5 py-0.5 text-sm font-bold ${
                                   b.badge_color === "green"
                                     ? "bg-mint text-brand-dark"
                                     : b.badge_color === "red"
@@ -555,7 +555,7 @@ export default function SupervisorDashboardPage() {
                               </span>
                             </div>
                             <p className="mt-0.5 text-ink">{b.menu_name}</p>
-                            <p className="text-[11px] text-ink2">
+                            <p className="text-sm text-ink2">
                               {[b.created_at ? `Dibuat ${time(b.created_at)}` : "", b.subtitle.startsWith(`${b.menu_name} • `) ? b.subtitle.slice(b.menu_name.length + 3) : b.subtitle].filter(Boolean).join(" • ")}
                             </p>
                           </div>
@@ -568,7 +568,7 @@ export default function SupervisorDashboardPage() {
                                 color="success"
                                 disabled={actionLoading}
                                 onClick={() => openHoldForm(b.batch_id, false, "list")}
-                                className="text-[11px] font-bold"
+                                className="text-sm font-bold"
                               >
                                 Lepaskan tahanan
                               </Button>
@@ -580,7 +580,7 @@ export default function SupervisorDashboardPage() {
                               variant="contained"
                               component={Link}
                               href={`/staff-review?batch=${encodeURIComponent(b.batch_id)}`}
-                              className="text-[11px] font-bold"
+                              className="text-sm font-bold"
                             >
                               Buka detail
                             </Button>
@@ -626,7 +626,7 @@ export default function SupervisorDashboardPage() {
                               size="small"
                               label={isReady ? "Batch ditutup" : isWorking ? "Packing" : "Menunggu"}
                               color={isReady ? "success" : isWorking ? "warning" : "default"}
-                              className="text-[10px] font-bold"
+                              className="text-sm font-bold"
                             />
                           </div>
 
@@ -643,7 +643,7 @@ export default function SupervisorDashboardPage() {
                         </div>
 
                         <div className="mt-4 border-t border-rule pt-3">
-                          <span className="block truncate text-[11px] text-ink2">{sch.address}</span>
+                          <span className="block truncate text-sm text-ink2">{sch.address}</span>
                         </div>
                       </div>
                     );

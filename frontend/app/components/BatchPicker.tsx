@@ -18,6 +18,7 @@ export default function BatchPicker({ rows }: { rows: BatchRow[] }) {
   const matched = matchingRows(rows, query);
   const options = pickerRows(matched, query, RECENT_BATCHES, SEARCH_LIMIT);
   const searching = query.trim() !== "";
+  const activeRows = rows.filter(row => row.batch_status !== "closed").sort((a, b) => Number(b.batch_status === "on_hold") - Number(a.batch_status === "on_hold"));
   useEffect(() => {
     if (!open) return;
     function outside(event: PointerEvent) { if (!root.current?.contains(event.target as Node)) setOpen(false); }
@@ -25,8 +26,17 @@ export default function BatchPicker({ rows }: { rows: BatchRow[] }) {
     return () => { document.removeEventListener("pointerdown", outside); };
   }, [open]);
   return <div ref={root} className="relative mt-3" onKeyDown={event => { if (event.key === "Escape") setOpen(false); }}>
+    {activeRows.length > 0 && <section aria-label="Batch yang masih berjalan" className="mb-3">
+      <h3 className="text-sm font-bold">Batch yang masih berjalan</h3>
+      <ul className="mt-1 max-h-80 divide-y divide-rule overflow-y-auto rounded-xl border border-rule">{activeRows.map(item => <li key={item.batch_id}>
+        <Link className="block px-3 py-3 hover:bg-mint focus-visible:bg-mint" href={`/staff-review?batch=${encodeURIComponent(item.batch_id)}`}>
+          <b className="block">{batchHeading(item.table_name, item.school_name)}</b>
+          <span className="block text-sm text-ink2">{item.batch_status === "on_hold" ? <span className="font-bold text-safety-ink">Ditahan supervisor</span> : backendLabel(item.summary_label)}</span>
+        </Link>
+      </li>)}</ul>
+    </section>}
     <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => { setOpen(value => !value); }} className={`${inputClass} flex items-center justify-between gap-3 text-left font-medium`}>
-      <span>Pilih batch <span className="font-normal text-ink2">({rows.length} tersimpan)</span></span>
+      <span>Cari riwayat batch <span className="font-normal text-ink2">({rows.length} tersimpan)</span></span>
       <span aria-hidden="true" className={`transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
     </button>
     {open && <div id={panelId} className="absolute inset-x-0 z-10 mt-2 rounded-xl border border-rule bg-paper p-3 shadow-[0_8px_24px_rgba(0,0,0,.12)]">
